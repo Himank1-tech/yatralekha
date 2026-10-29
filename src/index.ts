@@ -14,3 +14,11 @@ export * from './services/TelematicsIngestionWorker';
 export * from './parsers/Ais140Parser';
 export * from './parsers/DocumentOcrExtractor';
 export * from './routing/CorridorRoutingService';
+
+// Export Storage Repositories & Database
+export * from './repositories';
+export * from './database';
+
+// Export Express Application & Telematics Server
+export * from './server/app';
+export * from './server/Ais140SocketServer';
