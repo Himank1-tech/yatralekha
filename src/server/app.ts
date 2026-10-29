@@ -1,5 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import apiRouter from '../routes';
 
 // Enable clean JSON serialization for BigInt ledger values
@@ -29,7 +31,26 @@ export function createApp(): Express {
   // API v1 Routing
   app.use('/api/v1', apiRouter);
 
-  // Global 404 Handler
+  // Serve Frontend Production SPA if client/dist exists
+  const clientDistPaths = [
+    path.join(__dirname, '../../client/dist'),
+    path.join(__dirname, '../client/dist'),
+    path.join(process.cwd(), 'client/dist')
+  ];
+
+  const clientDist = clientDistPaths.find((p) => fs.existsSync(p));
+
+  if (clientDist) {
+    app.use(express.static(clientDist));
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method === 'GET' && !req.originalUrl.startsWith('/api') && !req.originalUrl.startsWith('/health')) {
+        return res.sendFile(path.join(clientDist, 'index.html'));
+      }
+      next();
+    });
+  }
+
+  // Global 404 Handler for API endpoints
   app.use((req: Request, res: Response) => {
     res.status(404).json({
       error: `Endpoint ${req.method} ${req.originalUrl} not found`
