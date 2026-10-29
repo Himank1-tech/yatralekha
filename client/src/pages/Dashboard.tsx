@@ -32,50 +32,35 @@ export const Dashboard: React.FC = () => {
         const corRes = await api.get<{ success: boolean; data: CorridorDetails[] }>('/corridors');
         if (corRes.data) setCorridors(corRes.data);
 
-        // Fetch recent trips from organizations
-        // Mock fallback if fresh database has no trips yet
-        setTrips([
-          {
-            id: 'trip-1',
-            organizationId: 'org-1',
-            vehicleId: 'veh-1',
-            tripSerialNumber: 'TRIP-2026-NGP-PUN-001',
-            origin: 'Nagpur (Hingna MIDC)',
-            destination: 'Pune (Chakan Auto Hub)',
-            corridorDistanceKm: 720,
-            billedWeightTonnes: 24.5,
-            rateType: 'PER_TONNE',
-            freightRate: 1150,
-            grossFreightAmount: 28175,
-            advanceAmount: 21131.25,
-            balancePodDue: 7043.75,
-            podClearanceStatus: 'PENDING',
-            overloadRiskFlag: false,
-            overloadExcessKg: 0,
-            expenses: [],
-            startedAt: new Date(Date.now() - 86400000).toISOString()
-          },
-          {
-            id: 'trip-2',
-            organizationId: 'org-1',
-            vehicleId: 'veh-2',
-            tripSerialNumber: 'TRIP-2026-NGP-BHD-004',
-            origin: 'Nagpur Steel Yard',
-            destination: 'Bhandara Ferro Alloys',
-            corridorDistanceKm: 65,
-            billedWeightTonnes: 22.0,
-            rateType: 'FIXED',
-            freightRate: 5500,
-            grossFreightAmount: 5500,
-            advanceAmount: 4400,
-            balancePodDue: 1100,
-            podClearanceStatus: 'VERIFIED',
-            overloadRiskFlag: false,
-            overloadExcessKg: 0,
-            expenses: [],
-            startedAt: new Date().toISOString()
-          }
-        ]);
+        // Fetch live trips from backend
+        const tripsRes = await api.get<{ success: boolean; data: Trip[] }>('/trips').catch(() => null);
+        if (tripsRes?.data && tripsRes.data.length > 0) {
+          setTrips(tripsRes.data);
+        } else {
+          // Fallback initial view
+          setTrips([
+            {
+              id: 'trip-1',
+              organizationId: 'org-1',
+              vehicleId: 'veh-1',
+              tripSerialNumber: 'TRIP-2026-NGP-PUN-001',
+              origin: 'Nagpur (Hingna MIDC)',
+              destination: 'Pune (Chakan Auto Hub)',
+              corridorDistanceKm: 720,
+              billedWeightTonnes: 24.5,
+              rateType: 'PER_TONNE',
+              freightRate: 1150,
+              grossFreightAmount: 28175,
+              advanceAmount: 21131.25,
+              balancePodDue: 7043.75,
+              podClearanceStatus: 'PENDING',
+              overloadRiskFlag: false,
+              overloadExcessKg: 0,
+              expenses: [],
+              startedAt: new Date(Date.now() - 86400000).toISOString()
+            }
+          ]);
+        }
       } catch (err) {
         console.warn('Dashboard load error:', err);
       } finally {

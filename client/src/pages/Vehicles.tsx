@@ -32,68 +32,9 @@ export const Vehicles: React.FC = () => {
 
   const fetchVehicles = async () => {
     try {
-      const res = await api.get<{ success: boolean; data: Vehicle[] }>(
-        '/organizations/default/vehicles'
-      ).catch(() => ({ data: [] }));
-
-      if (res.data && res.data.length > 0) {
+      const res = await api.get<{ success: boolean; data: Vehicle[] }>('/vehicles').catch(() => null);
+      if (res?.data && res.data.length > 0) {
         setVehicles(res.data);
-      } else {
-        // Fallback demo assets
-        setVehicles([
-          {
-            id: 'v1',
-            organizationId: 'org-1',
-            registrationNumber: 'MH 40 AK 9988',
-            chassisNumber: 'MAT628400K12904',
-            engineNumber: 'CUMMINS6BT9988',
-            axleConfiguration: '12_WHEELER',
-            tareWeightKg: 11000,
-            grossVehicleWeightKg: 35000,
-            maxLegalPayloadKg: 24000,
-            monthlyEmi: 48000,
-            crewMonthlyPayroll: 17000,
-            annualInsuranceTax: 60000,
-            ais140Imei: '867530901234567',
-            currentDriverName: 'Sanjay Yadav',
-            currentDriverPhone: '+919822114455',
-            createdAt: new Date().toISOString(),
-            dailyFixedBurnMetrics: {
-              monthlyEmi: 48000,
-              crewMonthlyPayroll: 17000,
-              proRatedMonthlyInsuranceTaxes: 5000,
-              totalMonthlyFixedCost: 70000,
-              dailyFixedBurn: 2333.33,
-              hourlyFixedBurn: 97.22
-            }
-          },
-          {
-            id: 'v2',
-            organizationId: 'org-1',
-            registrationNumber: 'MH 31 AP 4411',
-            chassisNumber: 'MAT109288J99120',
-            engineNumber: 'TATA697TC4411',
-            axleConfiguration: '10_WHEELER',
-            tareWeightKg: 9000,
-            grossVehicleWeightKg: 28000,
-            maxLegalPayloadKg: 19000,
-            monthlyEmi: 38000,
-            crewMonthlyPayroll: 17000,
-            annualInsuranceTax: 50000,
-            ais140Imei: '867530907654321',
-            currentDriverName: 'Rameshwar Patil',
-            currentDriverPhone: '+919822336677',
-            createdAt: new Date().toISOString(),
-            dailyFixedBurnMetrics: {
-              monthlyEmi: 38000,
-              crewMonthlyPayroll: 17000,
-              proRatedMonthlyInsuranceTaxes: 4166.67,
-              totalMonthlyFixedCost: 59166.67,
-              dailyFixedBurn: 1972.22,
-              hourlyFixedBurn: 82.18
-            }
-          }
-        ]);
       }
     } catch (e) {
       console.warn(e);
@@ -121,8 +62,8 @@ export const Vehicles: React.FC = () => {
       });
 
       if (res.data) {
-        setVehicles([...vehicles, res.data]);
         setIsModalOpen(false);
+        fetchVehicles();
       }
     } catch (e: any) {
       alert(`Vehicle registration error: ${e.message}`);

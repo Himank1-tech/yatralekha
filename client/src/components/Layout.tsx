@@ -1,22 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Navigation,
   Truck,
   Fuel,
   ShieldCheck,
-  FileText,
   BookOpen,
   ScanLine,
   MapPin,
-  Activity,
   Layers,
-  Radio
+  Radio,
+  Server
 } from 'lucide-react';
 
 export const Layout: React.FC = () => {
+  const [backendLatency, setBackendLatency] = useState<number | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function checkHealth() {
+      const t0 = performance.now();
+      try {
+        const res = await fetch('/health');
+        if (res.ok) {
+          const t1 = performance.now();
+          setBackendLatency(Math.round(t1 - t0));
+          setIsBackendConnected(true);
+        } else {
+          setIsBackendConnected(false);
+        }
+      } catch {
+        setIsBackendConnected(false);
+      }
+    }
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
   const navItems = [
     { to: '/', label: 'Executive Dashboard', icon: LayoutDashboard },
+    { to: '/tracking', label: 'Live GPS Tracking Map', icon: Navigation },
     { to: '/trips', label: 'Trips & Freight Khata', icon: Truck },
     { to: '/fuel-audit', label: 'Fuel Audit & Theft Radar', icon: Fuel },
     { to: '/vehicles', label: 'Fleet & Weight Limits', icon: Layers },
@@ -70,6 +96,9 @@ export const Layout: React.FC = () => {
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span>{item.label}</span>
+                {item.to === '/tracking' && (
+                  <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                )}
               </NavLink>
             );
           })}
@@ -92,12 +121,23 @@ export const Layout: React.FC = () => {
         {/* Top Navbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-              System Healthy (v1.0-MVP)
-            </span>
-            <span className="text-xs text-slate-500">
-              Corridor Focus: <span className="font-semibold text-slate-800">Nagpur ↔ Pune & Bhandara</span>
+            {isBackendConnected ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Backend Connected {backendLatency !== null ? `(${backendLatency}ms)` : ''}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                Backend Offline
+              </span>
+            )}
+
+            <span className="text-xs text-slate-500 hidden sm:inline">
+              Corridor Focus:{' '}
+              <span className="font-semibold text-slate-800">
+                Nagpur ↔ Pune (Samruddhi) & Bhandara (NH 53)
+              </span>
             </span>
           </div>
 

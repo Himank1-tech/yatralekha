@@ -1,10 +1,29 @@
 import { Request, Response } from 'express';
-import { ComplianceRepository, VehicleRepository } from '../repositories';
+import { ComplianceRepository, VehicleRepository, MemoryStore } from '../repositories';
 import { ComplianceWatchdog } from '../services/ComplianceWatchdog';
 import { DocumentSecurityService } from '../services/DocumentSecurityService';
 import { DocumentType } from '../types/domain';
 
 export class ComplianceController {
+  public static listAll(req: Request, res: Response): void {
+    const list = Array.from(MemoryStore.documents.values()).map((doc) => {
+      const vehicle = VehicleRepository.findById(doc.vehicleId);
+      const vehicleRegDate = vehicle?.createdAt || new Date('2022-01-01');
+      const evalResult = ComplianceWatchdog.evaluateDocument({
+        documentType: doc.documentType,
+        vehicleRegistrationDate: vehicleRegDate,
+        issueDate: doc.issueDate,
+        expiryDate: doc.expiryDate
+      });
+      return {
+        ...doc,
+        vehicleRegNo: vehicle?.registrationNumber || 'MH 40 AK 9988',
+        evaluation: evalResult
+      };
+    });
+    res.json({ success: true, count: list.length, data: list });
+  }
+
   public static createDocument(req: Request, res: Response): void {
     try {
       const {

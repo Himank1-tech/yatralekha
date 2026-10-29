@@ -1,5 +1,9 @@
 import { createApp } from './app';
 import { Ais140SocketServer } from './Ais140SocketServer';
+import { seedDatabase } from '../database/seed';
+
+// Automatically seed operational baseline for pilot fleet
+seedDatabase();
 
 const HTTP_PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const AIS140_PORT = process.env.AIS140_PORT ? parseInt(process.env.AIS140_PORT, 10) : 5179;

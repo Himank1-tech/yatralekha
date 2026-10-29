@@ -52,43 +52,17 @@ export const Trips: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch vehicles
-      const vehRes = await api.get<{ success: boolean; data: Vehicle[] }>(
-        '/organizations/default/vehicles'
-      ).catch(() => ({ data: [] }));
-
-      let loadedVehicles = vehRes.data || [];
-      if (loadedVehicles.length === 0) {
-        // Create initial sample vehicles if empty
-        const sample1 = await api.post<{ success: boolean; data: Vehicle }>('/vehicles', {
-          organizationId: 'default-org',
-          registrationNumber: 'MH 40 AK 9988',
-          chassisNumber: 'MAT628400K12904',
-          engineNumber: 'CUMMINS6BT9988',
-          axleConfiguration: '12_WHEELER',
-          monthlyEmi: 48000,
-          crewMonthlyPayroll: 17000,
-          annualInsuranceTax: 60000,
-          currentDriverName: 'Sanjay Yadav'
-        }).catch(() => null);
-
-        const sample2 = await api.post<{ success: boolean; data: Vehicle }>('/vehicles', {
-          organizationId: 'default-org',
-          registrationNumber: 'MH 31 AP 4411',
-          chassisNumber: 'MAT109288J99120',
-          engineNumber: 'TATA697TC4411',
-          axleConfiguration: '10_WHEELER',
-          monthlyEmi: 38000,
-          crewMonthlyPayroll: 17000,
-          annualInsuranceTax: 50000,
-          currentDriverName: 'Rameshwar Patil'
-        }).catch(() => null);
-
-        loadedVehicles = [sample1?.data, sample2?.data].filter(Boolean) as Vehicle[];
+      const vehRes = await api.get<{ success: boolean; data: Vehicle[] }>('/vehicles').catch(() => null);
+      if (vehRes?.data && vehRes.data.length > 0) {
+        setVehicles(vehRes.data);
+        if (!vehicleId) {
+          setVehicleId(vehRes.data[0].id);
+        }
       }
-      setVehicles(loadedVehicles);
-      if (loadedVehicles.length > 0) {
-        setVehicleId(loadedVehicles[0].id);
+
+      const tripsRes = await api.get<{ success: boolean; data: Trip[] }>('/trips').catch(() => null);
+      if (tripsRes?.data) {
+        setTrips(tripsRes.data);
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -120,7 +94,7 @@ export const Trips: React.FC = () => {
     e.preventDefault();
     try {
       const res = await api.post<{ success: boolean; data: { trip: Trip } }>('/trips', {
-        organizationId: 'default-org',
+        organizationId: selectedVehicleObj?.organizationId || 'default-org',
         vehicleId,
         tripSerialNumber: tripSerial,
         origin,
@@ -133,9 +107,9 @@ export const Trips: React.FC = () => {
       });
 
       if (res.data?.trip) {
-        setTrips([res.data.trip, ...trips]);
         setIsModalOpen(false);
         setTripSerial(`TRIP-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+        fetchData();
       }
     } catch (err: any) {
       alert(`Trip creation error: ${err.message}`);

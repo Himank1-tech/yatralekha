@@ -1,9 +1,24 @@
 import { Request, Response } from 'express';
-import { VehicleRepository } from '../repositories';
+import { VehicleRepository, MemoryStore } from '../repositories';
 import { FLEET_ASSET_BENCHMARKS, AxleConfiguration } from '../types/domain';
 import { TripFinanceEngine } from '../services/TripFinanceEngine';
 
 export class VehicleController {
+  public static listAll(req: Request, res: Response): void {
+    const list = Array.from(MemoryStore.vehicles.values()).map((vehicle) => {
+      const dailyBurn = TripFinanceEngine.calculateDailyFixedBurn({
+        monthlyEmi: vehicle.monthlyEmi,
+        annualInsuranceAndTaxes: vehicle.annualInsuranceTax,
+        daysInMonth: 30
+      });
+      return {
+        ...vehicle,
+        dailyFixedBurnMetrics: dailyBurn
+      };
+    });
+    res.json({ success: true, count: list.length, data: list });
+  }
+
   public static create(req: Request, res: Response): void {
     try {
       const {

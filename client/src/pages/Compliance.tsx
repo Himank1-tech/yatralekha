@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -22,68 +22,40 @@ export const Compliance: React.FC = () => {
   const [pinMessage, setPinMessage] = useState<string | null>(null);
   const [unlockedFilePath, setUnlockedFilePath] = useState<string | null>(null);
 
-  const [documents, setDocuments] = useState([
-    {
-      id: 'doc-1',
-      vehicleRegNo: 'MH 40 AK 9988',
-      documentType: 'FITNESS' as DocumentType,
-      documentNumber: 'MH40/FORM38/2026/0019',
-      issueDate: '2025-01-01',
-      expiryDate: '2027-01-01',
-      daysRemaining: 62,
-      alertTier: 'COMPLIANT',
-      cycleRule: '2-Year Cycle (Vehicle < 8 yrs old)',
-      isSecured: true
-    },
-    {
-      id: 'doc-2',
-      vehicleRegNo: 'MH 40 AK 9988',
-      documentType: 'PERMIT' as DocumentType,
-      documentNumber: 'AIP/MH/2022/8812',
-      issueDate: '2022-04-10',
-      expiryDate: '2027-04-10',
-      daysRemaining: 163,
-      alertTier: 'COMPLIANT',
-      cycleRule: '5-Year All India Permit (AIP)',
-      isSecured: true
-    },
-    {
-      id: 'doc-3',
-      vehicleRegNo: 'MH 31 AP 4411',
-      documentType: 'PUC' as DocumentType,
-      documentNumber: 'PUC-MH-2026-9921',
-      issueDate: '2026-05-15',
-      expiryDate: '2026-11-15',
-      daysRemaining: 17,
-      alertTier: '30_DAYS',
-      cycleRule: '6-Month Cycle',
-      isSecured: true
-    },
-    {
-      id: 'doc-4',
-      vehicleRegNo: 'MH 31 AP 4411',
-      documentType: 'ROAD_TAX' as DocumentType,
-      documentNumber: 'TAX/MAH/Q3/2026',
-      issueDate: '2026-08-01',
-      expiryDate: '2026-11-01',
-      daysRemaining: 3,
-      alertTier: '3_DAYS',
-      cycleRule: 'Quarterly MV Tax',
-      isSecured: true
+  const [documents, setDocuments] = useState<any[]>([]);
+
+  const fetchDocuments = async () => {
+    try {
+      const res = await api.get<{ success: boolean; data: any[] }>('/compliance/documents');
+      if (res.data && res.data.length > 0) {
+        setDocuments(res.data);
+      }
+    } catch (e) {
+      console.warn('Compliance docs fetch error:', e);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinMessage(null);
     setUnlockedFilePath(null);
 
-    // Call API PIN verification or test simulation
-    if (pinInput === '8821' || pinInput === '1234') {
-      setPinMessage('Access Authorized! Secure storage token verified.');
-      setUnlockedFilePath(`/secure/rto_vault/MH40AK9988_${pinModalDoc.documentType}.pdf`);
-    } else {
-      setPinMessage('ACCESS DENIED: Invalid document authorization PIN');
+    try {
+      const res = await api.post<{ success: boolean; data: any; message: string }>(
+        `/compliance/documents/${pinModalDoc.id}/verify-pin`,
+        { pin: pinInput }
+      );
+
+      if (res.success && res.data) {
+        setPinMessage('Access Authorized! Secure storage token verified.');
+        setUnlockedFilePath(res.data.filePath);
+      }
+    } catch (err: any) {
+      setPinMessage(err.message || 'ACCESS DENIED: Invalid document PIN');
     }
   };
 
@@ -171,23 +143,24 @@ export const Compliance: React.FC = () => {
                   <td className="py-3.5 px-4 font-mono text-slate-600">{d.documentNumber}</td>
                   <td className="py-3.5 px-4 text-slate-500">{formatDate(d.issueDate)}</td>
                   <td className="py-3.5 px-4 font-bold text-slate-900">{formatDate(d.expiryDate)}</td>
-                  <td className="py-3.5 px-4 text-slate-500">{d.cycleRule}</td>
+                  <td className="py-3.5 px-4 text-slate-500">
+                    {d.evaluation?.expectedCycleYearsOrMonths || d.cycleRule || 'MV Act Standard'}
+                  </td>
                   <td className="py-3.5 px-4">
-                    {d.alertTier === '3_DAYS' && (
-                      <Badge variant="rose" size="sm">
-                        3 Days Remaining!
-                      </Badge>
-                    )}
-                    {d.alertTier === '30_DAYS' && (
-                      <Badge variant="amber" size="sm">
-                        Expires in {d.daysRemaining}d
-                      </Badge>
-                    )}
-                    {d.alertTier === 'COMPLIANT' && (
-                      <Badge variant="emerald" size="sm">
-                        Compliant ({d.daysRemaining}d)
-                      </Badge>
-                    )}
+                    {(() => {
+                      const tier = d.evaluation?.alertTier || d.alertTier || 'COMPLIANT';
+                      const days = d.evaluation?.daysRemaining ?? d.daysRemaining ?? 30;
+                      if (tier === '3_DAYS') {
+                        return <Badge variant="rose" size="sm">3 Days Remaining!</Badge>;
+                      }
+                      if (tier === '15_DAYS') {
+                        return <Badge variant="rose" size="sm">Expires in {days}d</Badge>;
+                      }
+                      if (tier === '30_DAYS') {
+                        return <Badge variant="amber" size="sm">Expires in {days}d</Badge>;
+                      }
+                      return <Badge variant="emerald" size="sm">Compliant ({days}d)</Badge>;
+                    })()}
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button

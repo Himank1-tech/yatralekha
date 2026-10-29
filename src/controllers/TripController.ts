@@ -1,10 +1,15 @@
 import { Request, Response } from 'express';
-import { TripRepository, VehicleRepository, LedgerRepository } from '../repositories';
+import { TripRepository, VehicleRepository, LedgerRepository, MemoryStore } from '../repositories';
 import { TripFinanceEngine } from '../services/TripFinanceEngine';
 import { LedgerEngine } from '../services/LedgerEngine';
 import { RateType, TripExpenseInput } from '../types/domain';
 
 export class TripController {
+  public static listAll(req: Request, res: Response): void {
+    const list = Array.from(MemoryStore.trips.values()).reverse();
+    res.json({ success: true, count: list.length, data: list });
+  }
+
   public static create(req: Request, res: Response): void {
     try {
       const {

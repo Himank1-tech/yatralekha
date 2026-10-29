@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { LiveTracking } from './pages/LiveTracking';
 import { Trips } from './pages/Trips';
 import { FuelAudit } from './pages/FuelAudit';
 import { Vehicles } from './pages/Vehicles';
@@ -16,6 +17,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
+          <Route path="tracking" element={<LiveTracking />} />
           <Route path="trips" element={<Trips />} />
           <Route path="fuel-audit" element={<FuelAudit />} />
           <Route path="vehicles" element={<Vehicles />} />
