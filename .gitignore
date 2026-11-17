@@ -40,3 +40,5 @@ master_concat_list.txt
 # OS Files
 .DS_Store
 Thumbs.db
+
+.env*

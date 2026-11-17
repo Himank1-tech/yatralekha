@@ -4,27 +4,19 @@ services:
     env: node
     plan: free
     region: singapore
-    buildCommand: pnpm install && pnpm --filter @fleetpilot/db build && pnpm --filter @fleetpilot/api build
+    buildCommand: pnpm install && pnpm -r build
     startCommand: pnpm --filter @fleetpilot/api start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_VERSION
-        value: 20
+        value: 22.12.0
       - key: PORT
         value: 10000
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://web-phi-plum-44.vercel.app
       - key: GEMINI_API_KEY
-        sync: false
-      - key: S3_ENDPOINT
-        sync: false
-      - key: S3_BUCKET
-        sync: false
-      - key: S3_ACCESS_KEY
-        sync: false
-      - key: S3_SECRET_KEY
         sync: false
