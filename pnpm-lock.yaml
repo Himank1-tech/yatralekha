@@ -19,6 +19,24 @@ importers:
       '@fleetpilot/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jsonwebtoken':
+        specifier: ^9.0.7
+        version: 9.0.10
+      '@types/multer':
+        specifier: ^1.4.12
+        version: 1.4.13
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
@@ -40,34 +58,16 @@ importers:
       multer:
         specifier: ^1.4.5-lts.1
         version: 1.4.5-lts.2
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
       zod:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
-      '@types/bcryptjs':
-        specifier: ^2.4.6
-        version: 2.4.6
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.7
-        version: 9.0.10
-      '@types/multer':
-        specifier: ^1.4.12
-        version: 1.4.13
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@22.20.5)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
 
   apps/web:
     dependencies:
@@ -128,22 +128,22 @@ importers:
 
   packages/db:
     dependencies:
-      pg:
-        specifier: ^8.13.1
-        version: 8.23.1
-    devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
       '@types/pg':
         specifier: ^8.11.10
         version: 8.23.1
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.20.5)(typescript@5.9.3)
+      pg:
+        specifier: ^8.13.1
+        version: 8.23.1
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
+    devDependencies:
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@22.20.5)(typescript@5.9.3)
 
 packages:
 
