@@ -151,3 +151,104 @@ export interface TrialBalanceAccount {
   debitRupees: number;
   creditRupees: number;
 }
+
+// ==========================================
+// YatraLekha v2.0 Super-App UI Types
+// ==========================================
+
+export type FreightLoadStatus = 'AVAILABLE' | 'BOOKED' | 'EXPIRED';
+export type BodyType = 'DALA' | 'CONTAINER' | 'FLATBED' | 'TANKER';
+
+export interface FreightLoad {
+  id: string;
+  origin: string;
+  destination: string;
+  corridorName: string;
+  materialType: string;
+  weightTonnes: number;
+  requiredAxleType: AxleConfiguration | 'TRAILER';
+  bodyType: BodyType;
+  offeredRate: number;
+  rateType: RateType;
+  advancePercent: number;
+  balancePaymentTerms: string;
+  shipperName: string;
+  shipperPhone: string;
+  isVerifiedShipper: boolean;
+  status: FreightLoadStatus;
+  createdAt: string;
+}
+
+export interface PreferredLane {
+  id: string;
+  origin: string;
+  destination: string;
+  corridor: string;
+  recommendedRatePerTon: number;
+  activeAlerts: boolean;
+}
+
+export type ContactRole = 'Broker' | 'Driver' | 'Shipper' | 'Mandi Agent' | 'Pump Agent';
+export type CallType = 'INCOMING' | 'OUTGOING' | 'MISSED';
+export type DealStatus = 'RATE_CONFIRMED' | 'RATE_TOO_LOW' | 'POD_FOLLOWUP' | 'EN_ROUTE' | 'NEGOTIATING';
+
+export interface CallLog {
+  id: string;
+  organizationId: string;
+  contactName: string;
+  contactRole: ContactRole;
+  phoneNumber: string;
+  laneDiscussed: string;
+  callType: CallType;
+  durationSeconds: number;
+  dealStatus: DealStatus;
+  notes?: string;
+  createdAt: string;
+}
+
+export type VerificationType = 'VAHAN_RC' | 'SARATHI_DL' | 'PAN_KYC' | 'AADHAAR_KYC';
+
+export interface VerifiedEntity {
+  id: string;
+  organizationId: string;
+  verificationType: VerificationType;
+  identifierNumber: string;
+  holderName?: string;
+  verificationStatus: 'VERIFIED' | 'FAILED' | 'PENDING';
+  payload: Record<string, any>;
+  verifiedAt: string;
+}
+
+export type PodRecoveryStatus = 'PENDING' | 'OVERDUE' | 'LEGAL_NOTICE_SENT' | 'SETTLED';
+
+export interface PodBalanceClaim {
+  id: string;
+  tripId?: string;
+  brokerName: string;
+  brokerPhone: string;
+  biltyNumber: string;
+  origin: string;
+  destination: string;
+  vehicleNumber: string;
+  totalFreight: number;
+  advancePaid: number;
+  balanceDue: number;
+  unloadingDate: string;
+  dueDate: string;
+  recoveryStatus: PodRecoveryStatus;
+  daysOverdue: number;
+  isOverdue: boolean;
+  podDocumentUrl?: string;
+  disputeNotes?: string;
+  brokerRiskTier: 'LOW_RISK' | 'MODERATE_RISK' | 'HIGH_RISK_DEF_DEFAULTER';
+  createdAt: string;
+}
+
+export interface YatraMitraVoiceMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  actionRoute?: string;
+  actionLabel?: string;
+}

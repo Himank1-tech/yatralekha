@@ -8,6 +8,10 @@ import { TelematicsController } from '../controllers/TelematicsController';
 import { LedgerController } from '../controllers/LedgerController';
 import { OcrController } from '../controllers/OcrController';
 import { CorridorController } from '../controllers/CorridorController';
+import { MarketplaceController } from '../controllers/MarketplaceController';
+import { CallLogController } from '../controllers/CallLogController';
+import { VerificationController } from '../controllers/VerificationController';
+import { PodBalanceController } from '../controllers/PodBalanceController';
 
 const router = Router();
 
@@ -59,5 +63,29 @@ router.post('/ocr/extract', OcrController.extract);
 // 9. Corridor Routing Economics
 router.get('/corridors', CorridorController.list);
 router.get('/corridors/:key', CorridorController.getDetails);
+
+// 10. Freight Marketplace & Load Board
+router.get('/loads', MarketplaceController.listLoads);
+router.post('/loads', MarketplaceController.createLoad);
+router.post('/loads/:id/book', MarketplaceController.bookLoad);
+router.get('/preferred-lanes', MarketplaceController.getPreferredLanes);
+router.post('/preferred-lanes', MarketplaceController.savePreferredLanes);
+
+// 11. In-App Call Logs & Dialer Ledger
+router.get('/call-logs', CallLogController.list);
+router.post('/call-logs', CallLogController.create);
+router.delete('/call-logs/:id', CallLogController.delete);
+
+// 12. Government RTO & KYC Verifications (VAHAN, Sarathi, KYC)
+router.post('/verify/vahan', VerificationController.verifyVahan);
+router.post('/verify/sarathi', VerificationController.verifySarathi);
+router.post('/verify/kyc', VerificationController.verifyKyc);
+router.get('/verify/records', VerificationController.listRecords);
+
+// 13. Balance Bhaada Sentinel (POD Escrow & Debt Recovery)
+router.get('/pod-claims', PodBalanceController.list);
+router.post('/pod-claims', PodBalanceController.create);
+router.post('/pod-claims/:id/legal-notice', PodBalanceController.generateLegalNotice);
+router.post('/pod-claims/:id/settle', PodBalanceController.settle);
 
 export default router;

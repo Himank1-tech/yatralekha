@@ -1,5 +1,16 @@
 import crypto from 'crypto';
-import { AxleConfiguration, DocumentType, RateType, TripExpenseInput } from '../types/domain';
+import {
+  AxleConfiguration,
+  DocumentType,
+  RateType,
+  TripExpenseInput,
+  FreightLoad,
+  CallLog,
+  VerifiedEntity,
+  PodBalanceClaim,
+  PodRecoveryStatus,
+  VerificationType
+} from '../types/domain';
 import { JournalEntry } from '../services/LedgerEngine';
 
 export interface OrganizationRecord {
@@ -74,6 +85,10 @@ export class MemoryStore {
   public static documents = new Map<string, StatutoryDocumentRecord>();
   public static trips = new Map<string, TripRecord>();
   public static journals = new Map<string, JournalEntry[]>();
+  public static loads = new Map<string, FreightLoad>();
+  public static callLogs = new Map<string, CallLog>();
+  public static verifications = new Map<string, VerifiedEntity>();
+  public static podClaims = new Map<string, PodBalanceClaim>();
 
   public static clear(): void {
     this.organizations.clear();
@@ -81,6 +96,10 @@ export class MemoryStore {
     this.documents.clear();
     this.trips.clear();
     this.journals.clear();
+    this.loads.clear();
+    this.callLogs.clear();
+    this.verifications.clear();
+    this.podClaims.clear();
   }
 }
 
@@ -229,5 +248,223 @@ export class LedgerRepository {
       all.push(...entries);
     }
     return all;
+  }
+}
+
+
+export class FreightLoadRepository {
+  public static create(data: Omit<FreightLoad, 'id' | 'createdAt'>): FreightLoad {
+    const id = crypto.randomUUID();
+    const record: FreightLoad = {
+      ...data,
+      id,
+      createdAt: new Date()
+    };
+    MemoryStore.loads.set(id, record);
+    return record;
+  }
+
+  public static list(filter?: {
+    origin?: string;
+    destination?: string;
+    axleType?: string;
+    materialType?: string;
+    status?: string;
+  }): FreightLoad[] {
+    let result = Array.from(MemoryStore.loads.values());
+    if (filter?.status) {
+      result = result.filter((l) => l.status === filter.status);
+    }
+    if (filter?.origin) {
+      const q = filter.origin.toLowerCase();
+      result = result.filter((l) => l.origin.toLowerCase().includes(q));
+    }
+    if (filter?.destination) {
+      const q = filter.destination.toLowerCase();
+      result = result.filter((l) => l.destination.toLowerCase().includes(q));
+    }
+    if (filter?.axleType && filter.axleType !== 'ALL') {
+      result = result.filter((l) => l.requiredAxleType === filter.axleType);
+    }
+    if (filter?.materialType && filter.materialType !== 'ALL') {
+      result = result.filter((l) => l.materialType.toLowerCase().includes(filter.materialType!.toLowerCase()));
+    }
+    return result;
+  }
+
+  public static findById(id: string): FreightLoad | undefined {
+    return MemoryStore.loads.get(id);
+  }
+
+  public static bookLoad(id: string): FreightLoad | undefined {
+    const load = MemoryStore.loads.get(id);
+    if (load) {
+      load.status = 'BOOKED';
+      MemoryStore.loads.set(id, load);
+    }
+    return load;
+  }
+}
+
+export class CallLogRepository {
+  public static create(data: Omit<CallLog, 'id' | 'createdAt'>): CallLog {
+    const id = crypto.randomUUID();
+    const record: CallLog = {
+      ...data,
+      id,
+      createdAt: new Date()
+    };
+    MemoryStore.callLogs.set(id, record);
+    return record;
+  }
+
+  public static list(search?: string): CallLog[] {
+    let list = Array.from(MemoryStore.callLogs.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.contactName.toLowerCase().includes(q) ||
+          c.phoneNumber.includes(q) ||
+          c.laneDiscussed.toLowerCase().includes(q) ||
+          (c.notes && c.notes.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }
+
+  public static findById(id: string): CallLog | undefined {
+    return MemoryStore.callLogs.get(id);
+  }
+
+  public static delete(id: string): boolean {
+    return MemoryStore.callLogs.delete(id);
+  }
+}
+
+export class VerificationRepository {
+  public static create(data: Omit<VerifiedEntity, 'id' | 'verifiedAt'>): VerifiedEntity {
+    const id = crypto.randomUUID();
+    const record: VerifiedEntity = {
+      ...data,
+      id,
+      verifiedAt: new Date()
+    };
+    MemoryStore.verifications.set(id, record);
+    return record;
+  }
+
+  public static findByIdentifier(identifier: string, type: VerificationType): VerifiedEntity | undefined {
+    const cleanId = identifier.replace(/[\s-]/g, '').toUpperCase();
+    return Array.from(MemoryStore.verifications.values()).find(
+      (v) => v.verificationType === type && v.identifierNumber.replace(/[\s-]/g, '').toUpperCase() === cleanId
+    );
+  }
+
+  public static list(): VerifiedEntity[] {
+    return Array.from(MemoryStore.verifications.values()).sort(
+      (a, b) => b.verifiedAt.getTime() - a.verifiedAt.getTime()
+    );
+  }
+}
+
+export class PodBalanceRepository {
+  public static create(
+    data: Omit<PodBalanceClaim, 'id' | 'createdAt' | 'daysOverdue' | 'isOverdue' | 'brokerRiskTier' | 'recoveryStatus'> & {
+      recoveryStatus?: PodRecoveryStatus;
+    }
+  ): PodBalanceClaim {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    const dueTime = new Date(data.dueDate).getTime();
+    const diffDays = Math.max(0, Math.floor((now.getTime() - dueTime) / (1000 * 60 * 60 * 24)));
+    const isOverdue = diffDays > 0;
+    
+    let brokerRiskTier: 'LOW_RISK' | 'MODERATE_RISK' | 'HIGH_RISK_DEF_DEFAULTER' = 'LOW_RISK';
+    if (diffDays > 15) {
+      brokerRiskTier = 'HIGH_RISK_DEF_DEFAULTER';
+    } else if (diffDays > 0) {
+      brokerRiskTier = 'MODERATE_RISK';
+    }
+
+    const record: PodBalanceClaim = {
+      ...data,
+      id,
+      recoveryStatus: data.recoveryStatus || 'PENDING',
+      daysOverdue: diffDays,
+      isOverdue,
+      brokerRiskTier,
+      createdAt: now
+    };
+    MemoryStore.podClaims.set(id, record);
+    return record;
+  }
+
+  public static list(): PodBalanceClaim[] {
+    const now = new Date();
+    const list = Array.from(MemoryStore.podClaims.values()).map((c) => {
+      const dueTime = new Date(c.dueDate).getTime();
+      const diffDays = Math.max(0, Math.floor((now.getTime() - dueTime) / (1000 * 60 * 60 * 24)));
+      const isOverdue = diffDays > 0 && c.recoveryStatus !== 'SETTLED';
+      let risk: 'LOW_RISK' | 'MODERATE_RISK' | 'HIGH_RISK_DEF_DEFAULTER' = 'LOW_RISK';
+      if (diffDays > 15) risk = 'HIGH_RISK_DEF_DEFAULTER';
+      else if (diffDays > 0) risk = 'MODERATE_RISK';
+
+      c.daysOverdue = diffDays;
+      c.isOverdue = isOverdue;
+      c.brokerRiskTier = risk;
+      return c;
+    });
+
+    return list.sort((a, b) => b.daysOverdue - a.daysOverdue);
+  }
+
+  public static findById(id: string): PodBalanceClaim | undefined {
+    return MemoryStore.podClaims.get(id);
+  }
+
+  public static updateStatus(id: string, status: PodRecoveryStatus, notes?: string): PodBalanceClaim | undefined {
+    const claim = MemoryStore.podClaims.get(id);
+    if (claim) {
+      claim.recoveryStatus = status;
+      if (notes) {
+        claim.disputeNotes = notes;
+      }
+      MemoryStore.podClaims.set(id, claim);
+    }
+    return claim;
+  }
+
+  public static generateNotice(id: string): { noticeText: string; whatsappUrl: string } | null {
+    const claim = MemoryStore.podClaims.get(id);
+    if (!claim) return null;
+
+    const noticeText = `*FORMAL PAYMENT DEMAND NOTICE - YATRA LEKHA FREIGHT ESCROW*\n\n` +
+      `To: *${claim.brokerName}* (${claim.brokerPhone})\n` +
+      `From: *Vidarbha Heavy Haulers Pvt Ltd / Patil Transport*\n\n` +
+      `*Subject:* Immediate Payment of Overdue POD Balance (Bilty #${claim.biltyNumber})\n\n` +
+      `Dear Sir/Madam,\n` +
+      `Vehicle *${claim.vehicleNumber}* completed freight consignment delivery for route *${claim.origin} ➔ ${claim.destination}* on *${new Date(claim.unloadingDate).toLocaleDateString('en-IN')}*.\n\n` +
+      `• Total Agreed Freight: ₹${claim.totalFreight.toLocaleString('en-IN')}\n` +
+      `• Loading Advance Received (75%): ₹${claim.advancePaid.toLocaleString('en-IN')}\n` +
+      `• Outstanding POD Balance (25%): *₹${claim.balanceDue.toLocaleString('en-IN')}*\n` +
+      `• Agreed Payment Grace Period Due Date: *${new Date(claim.dueDate).toLocaleDateString('en-IN')}*\n` +
+      `• Current Overdue Delay: *${claim.daysOverdue} Days*\n\n` +
+      `Acknowledged Proof of Delivery (POD) with consignee stamp has already been handed over. Failure to clear balance within 48 hours will trigger statutory reporting under Indian Commercial Transport Recovery Guidelines and broker blacklisting on the YatraLekha Freight Exchange.\n\n` +
+      `Bank IMPS / UPI for Immediate Credit:\n` +
+      `Account: 92102004811982 | IFSC: UTIB0000123\n` +
+      `UPI ID: vidarbhahaulers@axl\n\n` +
+      `Regards,\nAccounts & Recovery Sentinel\nVidarbha Heavy Haulers Pvt Ltd`;
+
+    const cleanPhone = claim.brokerPhone.replace(/[^0-9]/g, '');
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(noticeText)}`;
+
+    // Update status to LEGAL_NOTICE_SENT
+    this.updateStatus(id, 'LEGAL_NOTICE_SENT');
+
+    return { noticeText, whatsappUrl };
   }
 }

@@ -197,3 +197,103 @@ export interface ComplianceEvaluationResult {
   isExpiringSoon: boolean;
   message: string;
 }
+
+// ==========================================
+// YatraLekha v2.0 Super-App Domain Types
+// ==========================================
+
+export type FreightLoadStatus = 'AVAILABLE' | 'BOOKED' | 'EXPIRED';
+export type BodyType = 'DALA' | 'CONTAINER' | 'FLATBED' | 'TANKER';
+
+export interface FreightLoad {
+  id: string;
+  origin: string;
+  destination: string;
+  corridorName: string;
+  materialType: string;
+  weightTonnes: number;
+  requiredAxleType: AxleConfiguration | 'TRAILER';
+  bodyType: BodyType;
+  offeredRate: number;
+  rateType: RateType;
+  advancePercent: number;
+  balancePaymentTerms: string;
+  shipperName: string;
+  shipperPhone: string;
+  isVerifiedShipper: boolean;
+  status: FreightLoadStatus;
+  createdAt: Date;
+}
+
+export type ContactRole = 'Broker' | 'Driver' | 'Shipper' | 'Mandi Agent' | 'Pump Agent';
+export type CallType = 'INCOMING' | 'OUTGOING' | 'MISSED';
+export type DealStatus = 'RATE_CONFIRMED' | 'RATE_TOO_LOW' | 'POD_FOLLOWUP' | 'EN_ROUTE' | 'NEGOTIATING';
+
+export interface CallLog {
+  id: string;
+  organizationId: string;
+  contactName: string;
+  contactRole: ContactRole;
+  phoneNumber: string;
+  laneDiscussed: string;
+  callType: CallType;
+  durationSeconds: number;
+  dealStatus: DealStatus;
+  notes?: string;
+  createdAt: Date;
+}
+
+export type VerificationType = 'VAHAN_RC' | 'SARATHI_DL' | 'PAN_KYC' | 'AADHAAR_KYC';
+
+export interface VerifiedEntity {
+  id: string;
+  organizationId: string;
+  verificationType: VerificationType;
+  identifierNumber: string;
+  holderName?: string;
+  verificationStatus: 'VERIFIED' | 'FAILED' | 'PENDING';
+  payload: Record<string, any>;
+  verifiedAt: Date;
+}
+
+export type PodRecoveryStatus = 'PENDING' | 'OVERDUE' | 'LEGAL_NOTICE_SENT' | 'SETTLED';
+
+export interface PodBalanceClaim {
+  id: string;
+  tripId?: string;
+  brokerName: string;
+  brokerPhone: string;
+  biltyNumber: string;
+  origin: string;
+  destination: string;
+  vehicleNumber: string;
+  totalFreight: number;
+  advancePaid: number;
+  balanceDue: number;
+  unloadingDate: Date;
+  dueDate: Date;
+  recoveryStatus: PodRecoveryStatus;
+  daysOverdue: number;
+  isOverdue: boolean;
+  podDocumentUrl?: string;
+  disputeNotes?: string;
+  brokerRiskTier: 'LOW_RISK' | 'MODERATE_RISK' | 'HIGH_RISK_DEF_DEFAULTER';
+  createdAt: Date;
+}
+
+export interface AntiOverloadCalculation {
+  registrationNumber: string;
+  axleConfiguration: AxleConfiguration;
+  passingGvwKg: number;
+  tareWeightKg: number;
+  legalMaxPayloadKg: number;
+  actualLoadedPayloadKg: number;
+  actualGrossWeightKg: number;
+  isOverloaded: boolean;
+  excessWeightKg: number;
+  excessTonnes: number;
+  section194BaseFine: number;
+  section194ExcessFine: number;
+  totalSection194Fine: number;
+  riskSeverity: 'SAFE_COMPLIANT' | 'CRITICAL_OVERLOAD_RISK';
+}

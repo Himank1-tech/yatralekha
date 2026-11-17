@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: yatralekha-api
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: pnpm install && pnpm --filter @fleetpilot/db build && pnpm --filter @fleetpilot/api build
+    startCommand: pnpm --filter @fleetpilot/api start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false

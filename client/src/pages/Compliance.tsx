@@ -9,14 +9,18 @@ import {
   FileText,
   Plus,
   CheckCircle2,
-  AlertOctagon
+  AlertOctagon,
+  Search,
+  Building
 } from 'lucide-react';
 import { Badge } from '../components/Badge';
 import { formatDate } from '../utils/formatters';
 import { api } from '../api/client';
 import { DocumentType } from '../types';
+import { RtoVerification } from './RtoVerification';
 
 export const Compliance: React.FC = () => {
+  const [complianceMode, setComplianceMode] = useState<'RTO_VERIFY' | 'PIN_VAULT'>('RTO_VERIFY');
   const [pinModalDoc, setPinModalDoc] = useState<any | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [pinMessage, setPinMessage] = useState<string | null>(null);
@@ -61,18 +65,47 @@ export const Compliance: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Statutory Compliance & RTO Vault
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Automated MV Act expiry watchdogs (30d, 15d, 3d, Expired) and Mahavitran-style PIN/password protected storage.
-        </p>
+      {/* Super-App Switcher */}
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            Statutory Compliance & Identity Center
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            MoRTH VAHAN 4.0 RC lookups, Sarathi commercial driving licenses, and PIN-secured vault.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setComplianceMode('RTO_VERIFY')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              complianceMode === 'RTO_VERIFY'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            MoRTH VAHAN & Sarathi KYC
+          </button>
+          <button
+            onClick={() => setComplianceMode('PIN_VAULT')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              complianceMode === 'PIN_VAULT'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            PIN Vault ({documents.length} Docs)
+          </button>
+        </div>
       </div>
 
-      {/* Watchdog Tiers Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      {complianceMode === 'RTO_VERIFY' ? (
+        <RtoVerification />
+      ) : (
+        <div className="space-y-6">
+          {/* Watchdog Tiers Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">Compliant</span>
@@ -182,6 +215,8 @@ export const Compliance: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
+  )}
 
       {/* PIN Unlock Modal */}
       {pinModalDoc && (

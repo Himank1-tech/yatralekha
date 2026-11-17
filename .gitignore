@@ -1,4 +1,42 @@
+# Dependencies
 node_modules/
+.pnpm-store/
+
+# Production Builds
 dist/
+build/
+.turbo/
+.netlify/
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment Variables & Secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Media & Generated Demo Artifacts
+*.mp4
+*.webm
+*.srt
+final_audio/
+master_audio/
+scene_audio/
+final_subtitles/
+master_subtitles/
+scene_subtitles/
+final_synced_chapters/
+master_synced_chapters/
+concat_list.txt
+final_concat_list.txt
+master_concat_list.txt
+
+# OS Files
 .DS_Store
+Thumbs.db

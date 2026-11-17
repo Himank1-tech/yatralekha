@@ -1,0 +1,18 @@
+{
+  "name": "YatraLekha - Heavy-Haul Fleet OS & Freight Marketplace",
+  "short_name": "YatraLekha",
+  "description": "Next-Gen Autonomous Commercial Transport OS, Dual-Mode GPS Telematics & POD Balance Sentinel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070A10",
+  "theme_color": "#4F46E5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
