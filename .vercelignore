@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+dist
+*.mp4
+*.webm
+*.srt
+.git
+final_audio
+master_audio
+scene_audio
+final_synced_chapters
+master_synced_chapters
