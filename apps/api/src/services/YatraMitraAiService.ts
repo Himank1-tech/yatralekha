@@ -71,35 +71,69 @@ Fuel Benchmark: 3.0 km/L standard consumption
 
 Respond in the user's requested language (${language}) using clear, friendly conversational Hinglish/Hindi or English.`;
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { text: systemPrompt },
-                    { text: `Transporter Query: "${message}"` }
-                  ]
-                }
-              ]
-            })
-          }
-        );
+        // Support both OpenAI-compatible endpoint (works with AQ. and AIzaSy keys) and native endpoint
+        const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
+        for (const candidateModel of candidateModels) {
+          try {
+            const response = await fetch(
+              'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${geminiApiKey}`
+                },
+                body: JSON.stringify({
+                  model: candidateModel,
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: message }
+                  ],
+                  max_tokens: 600
+                })
+              }
+            );
 
-        if (response.ok) {
-          const data: any = await response.json();
-          const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (generatedText) {
-            return {
-              reply: generatedText.trim(),
-              language,
-              model: 'gemini-2.5-flash',
-              fleetSummary
-            };
+            if (response.ok) {
+              const data: any = await response.json();
+              const generatedText = data?.choices?.[0]?.message?.content;
+              if (generatedText) {
+                return {
+                  reply: generatedText.trim(),
+                  language,
+                  model: candidateModel,
+                  fleetSummary
+                };
+              }
+            }
+          } catch (_e) {
+            // Try next candidate model
+          }
+        }
+
+        // Alternative native REST attempt if key is AIzaSy
+        if (geminiApiKey.startsWith('AIzaSy')) {
+          const nativeRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: systemPrompt }, { text: `Transporter Query: "${message}"` }] }]
+              })
+            }
+          );
+          if (nativeRes.ok) {
+            const nativeData: any = await nativeRes.json();
+            const text = nativeData?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              return {
+                reply: text.trim(),
+                language,
+                model: 'gemini-2.0-flash',
+                fleetSummary
+              };
+            }
           }
         }
       } catch (err: any) {
