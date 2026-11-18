@@ -17,6 +17,7 @@ import { AuthController } from '../controllers/AuthController';
 import { VaultController } from '../controllers/VaultController';
 import { AiController } from '../controllers/AiController';
 import { requireAuth, optionalAuth } from '../middleware/authMiddleware';
+import { documentUpload } from '../services/storage';
 
 const router: Router = Router();
 const upload = multer({
@@ -47,6 +48,7 @@ router.get('/trips', requireAuth, TripController.listAll);
 router.post('/trips/:id/expenses', requireAuth, TripController.addExpense);
 router.get('/trips/:id/finance', requireAuth, TripController.getFinanceSummary);
 router.post('/trips/:id/pod-settle', requireAuth, TripController.settlePod);
+router.post('/trips/:tripToken/pod', documentUpload.single('file'), TripController.uploadPod);
 router.post('/trips/backhaul-breakeven', requireAuth, TripController.calculateBackhaul);
 
 // 4. Fuel Theft & Variance Audit
@@ -60,8 +62,8 @@ router.get('/compliance/documents', requireAuth, ComplianceController.listAll);
 router.post('/compliance/documents/:id/verify-pin', requireAuth, ComplianceController.verifyPinAndRetrieve);
 router.get('/compliance/vehicles/:vehicleId/watchdog', requireAuth, ComplianceController.runWatchdogForVehicle);
 
-// Encrypted Document Vault
-router.post('/vault/upload', requireAuth, upload.single('file'), VaultController.uploadDocument);
+// Encrypted Document Vault (Neon Object Storage / S3)
+router.post('/vault/upload', requireAuth, documentUpload.single('file'), VaultController.uploadDocument);
 router.post('/vault/unlock', requireAuth, VaultController.unlockVault);
 router.get('/vault/file/:fileName', requireAuth, VaultController.getFile);
 
@@ -87,7 +89,8 @@ router.post('/ocr/extract', requireAuth, OcrController.extract);
 router.get('/corridors', CorridorController.list);
 router.get('/corridors/:key', CorridorController.getDetails);
 
-// 10. Freight Marketplace & Load Board
+// 10. Freight Marketplace & Load Board (Realtime SSE Stream + REST)
+router.get('/loads/stream', MarketplaceController.streamLoads);
 router.get('/loads', requireAuth, MarketplaceController.listLoads);
 router.post('/loads', requireAuth, MarketplaceController.createLoad);
 router.post('/loads/:id/book', requireAuth, MarketplaceController.bookLoad);

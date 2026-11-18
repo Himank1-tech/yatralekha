@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
+import { uploadToStorage, UploadFileOptions, StoredFileResult } from './storage';
 
 export interface UploadResult {
   storagePath: string;
@@ -20,85 +20,52 @@ export class StorageService {
   }
 
   /**
-   * Uploads file to S3-compatible storage (Cloudflare R2 / Supabase) or local disk fallback
+   * Uploads file to Neon Object Storage (S3-compatible) or local disk fallback
    */
   public static async uploadFile(
     fileBuffer: Buffer,
     originalName: string,
     mimeType: string,
-    organizationId: string
+    organizationId: string,
+    folder: string = 'vault'
   ): Promise<UploadResult> {
-    const ext = path.extname(originalName) || '.pdf';
-    const safeName = `${organizationId}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
-
-    // 1. Check if S3 / Cloudflare R2 / Supabase credentials are configured
-    const s3Endpoint = process.env.S3_ENDPOINT;
-    const s3Bucket = process.env.S3_BUCKET;
-    const s3AccessKey = process.env.S3_ACCESS_KEY;
-    const s3SecretKey = process.env.S3_SECRET_KEY;
-
-    if (s3Endpoint && s3Bucket && s3AccessKey && s3SecretKey) {
-      try {
-        const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-        const s3 = new S3Client({
-          endpoint: s3Endpoint,
-          region: process.env.S3_REGION || 'auto',
-          credentials: {
-            accessKeyId: s3AccessKey,
-            secretAccessKey: s3SecretKey
-          }
-        });
-
-        const key = `vault/${organizationId}/${safeName}`;
-        await s3.send(
-          new PutObjectCommand({
-            Bucket: s3Bucket,
-            Key: key,
-            Body: fileBuffer,
-            ContentType: mimeType
-          })
-        );
-
-        const publicUrl = process.env.S3_PUBLIC_DOMAIN
-          ? `${process.env.S3_PUBLIC_DOMAIN}/${key}`
-          : `${s3Endpoint}/${s3Bucket}/${key}`;
-
-        return {
-          storagePath: `s3://${s3Bucket}/${key}`,
-          fileName: safeName,
-          mimeType,
-          sizeBytes: fileBuffer.length,
-          url: publicUrl
-        };
-      } catch (err: any) {
-        console.warn('[StorageService] S3 upload failed, using local disk fallback:', err.message);
-      }
-    }
-
-    // 2. Local Disk Storage Fallback
-    this.ensureUploadDir();
-    const filePath = path.join(this.uploadDir, safeName);
-    fs.writeFileSync(filePath, fileBuffer);
+    const res: StoredFileResult = await uploadToStorage({
+      buffer: fileBuffer,
+      originalName,
+      mimeType,
+      folder,
+      organizationId,
+    });
 
     return {
-      storagePath: filePath,
-      fileName: safeName,
-      mimeType,
-      sizeBytes: fileBuffer.length,
-      url: `/api/v1/vault/file/${safeName}`
+      storagePath: res.isS3 ? `s3://${res.bucket}/${res.key}` : path.join(this.uploadDir, res.key),
+      fileName: res.key,
+      mimeType: res.mimeType,
+      sizeBytes: res.sizeBytes,
+      url: res.fileUrl,
     };
   }
 
   /**
-   * Retrieves a file from local storage or returns a stream
+   * Retrieves a file from local storage or returns a path
    */
   public static getLocalFile(fileName: string): { filePath: string; exists: boolean } {
     this.ensureUploadDir();
     const safeBaseName = path.basename(fileName);
     const filePath = path.join(this.uploadDir, safeBaseName);
-    return {
-      filePath,
-      exists: fs.existsSync(filePath)
-    };
+    const exists = fs.existsSync(filePath);
+
+    // Also check subfolders if not in root uploads
+    if (!exists) {
+      const folders = ['documents', 'vault', 'pod'];
+      for (const f of folders) {
+        const subPath = path.join(this.uploadDir, f, safeBaseName);
+        if (fs.existsSync(subPath)) {
+          return { filePath: subPath, exists: true };
+        }
+      }
+    }
+
+    return { filePath, exists };
   }
 }

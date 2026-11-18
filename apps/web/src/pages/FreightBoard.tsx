@@ -44,9 +44,9 @@ export const FreightBoard: React.FC = () => {
   const [newShipper, setNewShipper] = useState('');
   const [newPhone, setNewPhone] = useState('');
 
-  const fetchLoads = async () => {
+  const fetchLoads = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.get<{ success: boolean; data: FreightLoad[] }>('/loads');
       if (res.data) {
         setLoads(res.data);
@@ -56,14 +56,74 @@ export const FreightBoard: React.FC = () => {
         setPreferredLanes(lanesRes.data);
       }
     } catch (err) {
-      console.error('Failed to load freight board:', err);
+      if (!silent) console.error('Failed to load freight board:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLoads();
+    fetchLoads(false);
+
+    // 1. Server-Sent Events (SSE) Real-Time Live Load Board
+    let eventSource: EventSource | null = null;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://yatralekha-api.onrender.com';
+      const streamUrl = `${API_URL}/api/v1/loads/stream`;
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.addEventListener('snapshot', (e: MessageEvent) => {
+        try {
+          const snapshotLoads = JSON.parse(e.data);
+          if (Array.isArray(snapshotLoads)) {
+            setLoads(snapshotLoads);
+          }
+        } catch (err) {
+          console.warn('SSE snapshot parse notice:', err);
+        }
+      });
+
+      eventSource.addEventListener('load_created', (e: MessageEvent) => {
+        try {
+          const newLoad: FreightLoad = JSON.parse(e.data);
+          setLoads((prev) => {
+            if (prev.some((l) => l.id === newLoad.id)) return prev;
+            return [newLoad, ...prev];
+          });
+        } catch (err) {
+          console.warn('SSE load_created parse notice:', err);
+        }
+      });
+
+      eventSource.addEventListener('load_booked', (e: MessageEvent) => {
+        try {
+          const bookedLoad: FreightLoad = JSON.parse(e.data);
+          setLoads((prev) =>
+            prev.map((l) => (l.id === bookedLoad.id ? { ...l, status: bookedLoad.status || 'BOOKED' } : l))
+          );
+        } catch (err) {
+          console.warn('SSE load_booked parse notice:', err);
+        }
+      });
+
+      eventSource.onerror = () => {
+        eventSource?.close();
+      };
+    } catch (err) {
+      console.warn('EventSource connection notice:', err);
+    }
+
+    // 2. 10s Fallback Polling
+    const pollInterval = setInterval(() => {
+      fetchLoads(true);
+    }, 10000);
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const handleBook = async (loadId: string) => {
@@ -170,9 +230,9 @@ export const FreightBoard: React.FC = () => {
               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
                 TrucksUp & BlackBuck Super-Exchange Mode
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                Live Highway Freight
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                Live 🟢
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">

@@ -3,6 +3,8 @@ import { TripRepository, VehicleRepository, LedgerRepository, MemoryStore } from
 import { TripFinanceEngine } from '../services/TripFinanceEngine';
 import { LedgerEngine } from '../services/LedgerEngine';
 import { RateType, TripExpenseInput } from '../types/domain';
+import { StorageService } from '../services/StorageService';
+import { Database } from '../database';
 
 export class TripController {
   public static listAll(req: Request, res: Response): void {
@@ -248,6 +250,69 @@ export class TripController {
       res.json({ success: true, data: breakEven });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/v1/trips/:tripToken/pod
+   * Uploads signed POD (Proof of Delivery / Bilty) photo from driver mobile or fleet dashboard
+   */
+  public static async uploadPod(req: Request, res: Response): Promise<void> {
+    try {
+      const { tripToken } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        res.status(400).json({
+          success: false,
+          error: 'No POD file uploaded. Please capture or attach a clear photo/PDF of the signed bilty.'
+        });
+        return;
+      }
+
+      // Upload file to Neon Object Storage (S3) or local disk fallback
+      const uploadResult = await StorageService.uploadFile(
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+        'pod-vault',
+        'pod'
+      );
+
+      // Update in-memory Trip record
+      const updatedTrip = TripRepository.updatePod(tripToken, uploadResult.url, 'SUBMITTED');
+
+      // Update in PostgreSQL database if connected
+      try {
+        if (process.env.DATABASE_URL) {
+          const pool = Database.getPool();
+          await pool.query(
+            `UPDATE trips 
+             SET pod_document_path = $1, 
+                 pod_clearance_status = 'SUBMITTED', 
+                 pod_submission_date = CURRENT_TIMESTAMP, 
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id::text = $2 OR trip_serial_number = $2`,
+            [uploadResult.url, tripToken]
+          );
+        }
+      } catch (dbErr: any) {
+        console.warn('[TripController.uploadPod] DB update notice:', dbErr.message);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Signed Proof of Delivery (Bilty) uploaded successfully. Balance clearance unlocked.',
+        data: {
+          tripToken,
+          fileUrl: uploadResult.url,
+          status: 'SUBMITTED',
+          trip: updatedTrip
+        }
+      });
+    } catch (err: any) {
+      console.error('[TripController.uploadPod] Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to upload POD' });
     }
   }
 }

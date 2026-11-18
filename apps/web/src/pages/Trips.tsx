@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Truck,
   Plus,
@@ -11,7 +11,9 @@ import {
   Scale,
   RefreshCw,
   Eye,
-  FileCheck2
+  FileCheck2,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { Badge } from '../components/Badge';
 import { formatINR, formatTonnes, formatKg } from '../utils/formatters';
@@ -47,6 +49,38 @@ export const Trips: React.FC = () => {
   const [pumpName, setPumpName] = useState('BPCL Highway Oasis - Karanja Lad');
   const [pumpSlipNo, setPumpSlipNo] = useState('PARCHI-9921');
   const [expenseMemo, setExpenseMemo] = useState('');
+
+  // Hidden file input for Transporter POD upload
+  const tripFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeUploadTripToken, setActiveUploadTripToken] = useState<string | null>(null);
+
+  const handleTripPodUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeUploadTripToken) return;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1';
+      const token = localStorage.getItem('yatralekha_token');
+      const res = await fetch(`${API_BASE}/trips/${activeUploadTripToken}/pod`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('✓ Proof of Delivery (Bilty) uploaded successfully to S3 Vault!');
+        fetchData();
+      } else {
+        alert(data.error || 'Failed to upload POD');
+      }
+    } catch (err: any) {
+      alert('Error uploading POD: ' + err.message);
+    } finally {
+      setActiveUploadTripToken(null);
+      if (tripFileInputRef.current) tripFileInputRef.current.value = '';
+    }
+  };
 
   // Load vehicles and trips
   const fetchData = async () => {
@@ -271,10 +305,24 @@ export const Trips: React.FC = () => {
                         <Badge variant="emerald" size="sm">
                           POD Realized
                         </Badge>
+                      ) : t.podClearanceStatus === 'SUBMITTED' ? (
+                        <Badge variant="indigo" size="sm">
+                          POD Uploaded
+                        </Badge>
                       ) : (
                         <Badge variant="amber" size="sm">
                           Khata Pending
                         </Badge>
+                      )}
+                      {t.podDocumentPath && (
+                        <a
+                          href={t.podDocumentPath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline mt-1"
+                        >
+                          📄 View Bilty
+                        </a>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right space-x-2">
@@ -284,6 +332,17 @@ export const Trips: React.FC = () => {
                       >
                         <Eye className="w-3 h-3" />
                         Khata
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveUploadTripToken(t.id);
+                          tripFileInputRef.current?.click();
+                        }}
+                        title="Upload Signed POD (Bilty)"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition"
+                      >
+                        <Camera className="w-3 h-3" />
+                        POD
                       </button>
                       {t.podClearanceStatus !== 'VERIFIED' && (
                         <button
@@ -301,6 +360,16 @@ export const Trips: React.FC = () => {
             </table>
           </div>
         )}
+
+        {/* Hidden Camera File Input for Transporter POD upload */}
+        <input
+          ref={tripFileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/jpg,application/pdf"
+          capture="environment"
+          className="hidden"
+          onChange={handleTripPodUpload}
+        />
       </div>
 
       {/* Trip Financial Contribution Drawer / View */}

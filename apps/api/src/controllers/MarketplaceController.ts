@@ -29,6 +29,24 @@ let preferredLanesStore = [
   }
 ];
 
+interface SseClient {
+  id: string;
+  res: Response;
+}
+
+let sseClients: SseClient[] = [];
+
+export function broadcastMarketplaceEvent(event: string, data: any): void {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  sseClients.forEach((client) => {
+    try {
+      client.res.write(payload);
+    } catch {
+      // client connection likely dropped
+    }
+  });
+}
+
 export class MarketplaceController {
   public static listLoads(req: Request, res: Response): void {
     try {
@@ -100,6 +118,8 @@ export class MarketplaceController {
         status: 'AVAILABLE'
       });
 
+      broadcastMarketplaceEvent('load_created', load);
+
       res.status(201).json({ success: true, data: load });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -114,6 +134,9 @@ export class MarketplaceController {
         res.status(404).json({ success: false, error: `Load ${id} not found` });
         return;
       }
+
+      broadcastMarketplaceEvent('load_booked', booked);
+
       res.json({
         success: true,
         message: 'Load successfully reserved and locked for transport dispatch',
@@ -122,6 +145,40 @@ export class MarketplaceController {
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
+  }
+
+  /**
+   * GET /api/v1/loads/stream
+   * Server-Sent Events (SSE) live stream for freight marketplace loads
+   */
+  public static streamLoads(req: Request, res: Response): void {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.flushHeaders?.();
+
+    const clientId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const client: SseClient = { id: clientId, res };
+    sseClients.push(client);
+
+    // Send initial snapshot of available freight loads
+    const currentLoads = FreightLoadRepository.list({ status: 'AVAILABLE' });
+    res.write(`event: snapshot\ndata: ${JSON.stringify(currentLoads)}\n\n`);
+
+    // Keep connection alive with 20s heartbeat
+    const heartbeatTimer = setInterval(() => {
+      try {
+        res.write(`: heartbeat\n\n`);
+      } catch {
+        clearInterval(heartbeatTimer);
+      }
+    }, 20000);
+
+    req.on('close', () => {
+      clearInterval(heartbeatTimer);
+      sseClients = sseClients.filter((c) => c.id !== clientId);
+    });
   }
 
   public static getPreferredLanes(req: Request, res: Response): void {

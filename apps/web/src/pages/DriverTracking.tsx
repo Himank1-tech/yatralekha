@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Navigation, Radio, MapPin, Truck, Phone, ShieldAlert, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import {
+  Navigation,
+  Radio,
+  MapPin,
+  Truck,
+  Phone,
+  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  Camera,
+  ExternalLink,
+  FileCheck
+} from 'lucide-react';
 
 export const DriverTracking: React.FC = () => {
   const { tripToken } = useParams<{ tripToken: string }>();
@@ -9,9 +22,43 @@ export const DriverTracking: React.FC = () => {
   const [pingCount, setPingCount] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('Ready to start tracking');
   const [tripInfo, setTripInfo] = useState<any>(null);
+  const [isUploadingPod, setIsUploadingPod] = useState<boolean>(false);
+  const [podUploadedUrl, setPodUploadedUrl] = useState<string | null>(null);
+  const [podStatus, setPodStatus] = useState<string>('PENDING');
+  const [podError, setPodError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1';
+
+  const handlePodUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPod(true);
+    setPodError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const targetToken = tripToken || 'TRIP-DEMO-01';
+      const res = await fetch(`${API_BASE}/trips/${targetToken}/pod`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPodUploadedUrl(data.data.fileUrl);
+        setPodStatus('SUBMITTED');
+      } else {
+        setPodError(data.error || 'Failed to upload POD photo');
+      }
+    } catch (err: any) {
+      setPodError(err.message || 'Network error uploading POD photo');
+    } finally {
+      setIsUploadingPod(false);
+    }
+  };
 
   // Fetch initial trip metadata
   useEffect(() => {
@@ -192,6 +239,94 @@ export const DriverTracking: React.FC = () => {
             </div>
             <span className="text-[11px] font-normal text-amber-100">लोकेशन भेजना रोकें</span>
           </button>
+        )}
+      </div>
+
+      {/* Driver POD Camera Capture Card */}
+      <div className="w-full bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-500/30 rounded-2xl p-4 shadow-xl mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Camera className="w-4 h-4 text-indigo-400" />
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              Signed Proof of Delivery (POD / Bilty)
+            </span>
+          </div>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              podStatus === 'SUBMITTED'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            }`}
+          >
+            {podStatus === 'SUBMITTED' ? '✓ SUBMITTED' : 'ACTION REQUIRED'}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-300 mb-3">
+          Unloading complete hone par physical stamped bilty ki photo khinchein to unlock balance bhaada.
+        </p>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/jpg,application/pdf"
+          capture="environment"
+          className="hidden"
+          onChange={handlePodUpload}
+        />
+
+        {podUploadedUrl ? (
+          <div className="bg-emerald-950/60 border border-emerald-500/40 rounded-xl p-3 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Signed Bilty Uploaded to S3 Vault!</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <img
+                src={podUploadedUrl}
+                alt="Signed POD"
+                className="w-16 h-16 object-cover rounded-lg border border-emerald-500/50 bg-black"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+              <div className="text-[11px] text-slate-300 space-y-1">
+                <span className="text-emerald-400 font-semibold block">Balance Clearance Unlocked</span>
+                <a
+                  href={podUploadedUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[10px] text-indigo-300 underline font-medium"
+                >
+                  <ExternalLink className="w-3 h-3" /> View Stored Document
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingPod}
+            className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-950 flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 disabled:opacity-50"
+          >
+            {isUploadingPod ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Uploading to S3 Cloud Vault...</span>
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4" />
+                <span>Upload Signed POD (Bilty) / बिल्टी फोटो खींचें</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {podError && (
+          <div className="mt-2 p-2 rounded bg-rose-950/60 border border-rose-500/40 text-[11px] text-rose-300">
+            {podError}
+          </div>
         )}
       </div>
 

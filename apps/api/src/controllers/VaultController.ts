@@ -4,6 +4,7 @@ import { StorageService } from '../services/StorageService';
 import { ComplianceRepository, OrganizationRepository, MemoryStore } from '../repositories';
 import { AuthService } from '../services/AuthService';
 import { DocumentType } from '../types/domain';
+import { Database } from '../database';
 import path from 'path';
 
 export class VaultController {
@@ -57,6 +58,34 @@ export class VaultController {
         pinSalt: 'salt_v2',
         isVerified: true
       });
+
+      // Save into PostgreSQL database if connected
+      try {
+        if (process.env.DATABASE_URL) {
+          const pool = Database.getPool();
+          await pool.query(
+            `INSERT INTO statutory_documents 
+              (organization_id, vehicle_id, document_type, document_number, issue_date, expiry_date, encrypted_file_storage_path, pin_hash, pin_salt, mime_type, file_size_bytes, is_verified)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+             ON CONFLICT DO NOTHING`,
+            [
+              orgId,
+              vehicleId,
+              documentType,
+              doc.documentNumber,
+              doc.issueDate,
+              doc.expiryDate,
+              uploadResult.url,
+              pinHash,
+              'salt_v2',
+              file.mimetype,
+              file.size
+            ]
+          );
+        }
+      } catch (dbErr: any) {
+        console.warn('[VaultController.uploadDocument] DB insert notice:', dbErr.message);
+      }
 
       res.status(201).json({
         success: true,

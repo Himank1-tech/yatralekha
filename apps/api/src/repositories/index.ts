@@ -90,6 +90,9 @@ export interface TripRecord {
   advanceAmount: number;
   balancePodDue: number;
   podClearanceStatus: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DEFAULTED';
+  podDocumentPath?: string;
+  podSubmissionDate?: Date;
+  podSettlementDate?: Date;
   overloadRiskFlag: boolean;
   overloadExcessKg: number;
   expenses: (TripExpenseInput & { id: string; createdAt: Date })[];
@@ -270,8 +273,35 @@ export class TripRepository {
       throw new Error(`Trip ${tripId} not found`);
     }
     trip.podClearanceStatus = status;
+    if (status === 'SUBMITTED') {
+      trip.podSubmissionDate = new Date();
+    }
     if (status === 'VERIFIED') {
       trip.completedAt = new Date();
+      trip.podSettlementDate = new Date();
+    }
+    return trip;
+  }
+
+  public static updatePod(
+    tripIdOrToken: string,
+    podDocumentPath: string,
+    status: 'PENDING' | 'SUBMITTED' | 'VERIFIED' | 'DEFAULTED' = 'SUBMITTED'
+  ): TripRecord | undefined {
+    let trip = this.findById(tripIdOrToken);
+    if (!trip) {
+      trip = Array.from(MemoryStore.trips.values()).find(
+        (t) =>
+          t.tripSerialNumber === tripIdOrToken ||
+          t.id.includes(tripIdOrToken) ||
+          tripIdOrToken.includes(t.id) ||
+          tripIdOrToken.includes(t.tripSerialNumber)
+      );
+    }
+    if (trip) {
+      trip.podDocumentPath = podDocumentPath;
+      trip.podClearanceStatus = status;
+      trip.podSubmissionDate = new Date();
     }
     return trip;
   }

@@ -69,6 +69,8 @@ export interface Trip {
   advanceAmount: number;
   balancePodDue: number;
   podClearanceStatus: PodClearanceStatus;
+  podDocumentPath?: string;
+  podSubmissionDate?: string;
   overloadRiskFlag: boolean;
   overloadExcessKg: number;
   expenses: TripExpense[];
