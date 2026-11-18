@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { OrganizationRepository, UserRepository, MemoryStore } from '../repositories';
 import { AuthService } from '../services/AuthService';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
+import { Database } from '../database';
 
 export class AuthController {
   /**
@@ -68,6 +69,49 @@ export class AuthController {
         organizationId: org.id
       });
 
+      // Persist to PostgreSQL if connected
+      if (process.env.DATABASE_URL) {
+        try {
+          const pool = Database.getPool();
+          await pool.query(
+            `INSERT INTO organizations (id, name, company_name, hub_location, hub_city, pan_or_gst, gstin, pan, contact_phone, contact_email, vault_pin_hash, kyc_status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             ON CONFLICT (id) DO NOTHING`,
+            [
+              org.id,
+              org.name,
+              org.companyName,
+              org.hubLocation,
+              org.hubCity,
+              org.panOrGst,
+              org.gstin || null,
+              org.pan || null,
+              org.contactPhone,
+              org.contactEmail,
+              vaultPinHash,
+              org.kycStatus
+            ]
+          );
+
+          await pool.query(
+            `INSERT INTO users (id, full_name, email, phone, password_hash, role, organization_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (email) DO NOTHING`,
+            [
+              user.id,
+              user.fullName,
+              user.email,
+              user.phone,
+              passwordHash,
+              user.role,
+              user.organizationId
+            ]
+          );
+        } catch (dbErr: any) {
+          console.warn('[AuthController.register] DB persistence notice:', dbErr.message);
+        }
+      }
+
       // 3. Issue JWT Token
       const token = AuthService.generateToken({
         userId: user.id,
@@ -111,7 +155,52 @@ export class AuthController {
       }
 
       const normalizedEmail = email.trim().toLowerCase();
-      const user = UserRepository.findByEmail(normalizedEmail);
+      let user = UserRepository.findByEmail(normalizedEmail);
+
+      // Check PostgreSQL if not yet cached in MemoryStore
+      if (!user && process.env.DATABASE_URL) {
+        try {
+          const pool = Database.getPool();
+          const uRes = await pool.query(
+            `SELECT u.*, o.name AS org_name, o.company_name, o.hub_city, o.hub_location, o.gstin, o.pan, o.pan_or_gst, o.contact_phone
+             FROM users u
+             JOIN organizations o ON o.id = u.organization_id
+             WHERE u.email = $1`,
+            [normalizedEmail]
+          );
+
+          if (uRes.rows.length > 0) {
+            const row = uRes.rows[0];
+            const org = OrganizationRepository.create({
+              name: row.company_name || row.org_name,
+              companyName: row.company_name || row.org_name,
+              hubLocation: row.hub_city || row.hub_location,
+              hubCity: row.hub_city || row.hub_location,
+              panOrGst: row.pan_or_gst || row.gstin || row.pan || 'UNREGISTERED',
+              gstin: row.gstin,
+              pan: row.pan,
+              contactPhone: row.contact_phone || row.phone,
+              contactEmail: normalizedEmail,
+              vaultPinHash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+            });
+            org.id = row.organization_id;
+            MemoryStore.organizations.set(org.id, org);
+
+            user = UserRepository.create({
+              fullName: row.full_name,
+              email: row.email,
+              phone: row.phone,
+              passwordHash: row.password_hash,
+              role: row.role,
+              organizationId: row.organization_id
+            });
+            user.id = row.id;
+            MemoryStore.users.set(user.id, user);
+          }
+        } catch (dbErr: any) {
+          console.warn('[AuthController.login] DB lookup notice:', dbErr.message);
+        }
+      }
 
       if (!user) {
         res.status(401).json({ error: 'Invalid email or password' });

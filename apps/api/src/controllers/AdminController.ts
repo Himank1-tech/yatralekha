@@ -51,31 +51,67 @@ export class AdminController {
           ORDER BY o.created_at DESC
         `);
 
+        let orgList = orgsRes.rows.map((row: any) => ({
+          id: row.id,
+          companyName: row.company_name,
+          hubCity: row.hub_city,
+          panOrGst: row.pan_or_gst,
+          gstin: row.gstin,
+          kycStatus: row.kyc_status,
+          signupDate: row.signup_date,
+          ownerName: row.owner_name || 'N/A',
+          ownerEmail: row.owner_email || 'N/A',
+          ownerPhone: row.owner_phone || 'N/A',
+          ownerRole: row.owner_role || 'OWNER',
+          vehicleCount: Number(row.vehicle_count || 0),
+          tripCount: Number(row.trip_count || 0)
+        }));
+
+        // Merge any in-memory organizations not yet present in PostgreSQL
+        if (MemoryStore.organizations.size > 0) {
+          const dbIds = new Set(orgList.map((o: any) => o.id));
+          for (const memOrg of MemoryStore.organizations.values()) {
+            if (!dbIds.has(memOrg.id)) {
+              const users = Array.from(MemoryStore.users.values()).filter((u) => u.organizationId === memOrg.id);
+              const owner = users.find((u) => u.role === 'OWNER') || users[0];
+              const vehicleCount = Array.from(MemoryStore.vehicles.values()).filter((v) => v.organizationId === memOrg.id).length;
+              const tripCount = Array.from(MemoryStore.trips.values()).filter((t) => t.organizationId === memOrg.id).length;
+              orgList.push({
+                id: memOrg.id,
+                companyName: memOrg.companyName || memOrg.name,
+                hubCity: memOrg.hubCity || memOrg.hubLocation,
+                panOrGst: memOrg.panOrGst,
+                gstin: memOrg.gstin,
+                kycStatus: memOrg.kycStatus || 'VERIFIED',
+                signupDate: memOrg.createdAt ? memOrg.createdAt.toISOString() : new Date().toISOString(),
+                ownerName: owner?.fullName || 'N/A',
+                ownerEmail: owner?.email || 'N/A',
+                ownerPhone: owner?.phone || 'N/A',
+                ownerRole: owner?.role || 'OWNER',
+                vehicleCount,
+                tripCount
+              });
+            }
+          }
+        }
+
+        const totalOrgs = Math.max(countRes.rows[0]?.total_organizations || 0, orgList.length);
+        const totalUsers = Math.max(countRes.rows[0]?.total_users || 0, MemoryStore.users.size);
+        const totalVehicles = Math.max(countRes.rows[0]?.total_vehicles || 0, MemoryStore.vehicles.size);
+        const totalTrips = Math.max(countRes.rows[0]?.total_trips || 0, MemoryStore.trips.size);
+        const totalLoads = Math.max(countRes.rows[0]?.total_loads || 0, MemoryStore.loads.size);
+
         res.json({
           success: true,
           data: {
             stats: {
-              totalOrganizations: countRes.rows[0]?.total_organizations || 0,
-              totalUsers: countRes.rows[0]?.total_users || 0,
-              totalVehicles: countRes.rows[0]?.total_vehicles || 0,
-              totalTrips: countRes.rows[0]?.total_trips || 0,
-              totalLoads: countRes.rows[0]?.total_loads || 0,
+              totalOrganizations: totalOrgs,
+              totalUsers: totalUsers,
+              totalVehicles: totalVehicles,
+              totalTrips: totalTrips,
+              totalLoads: totalLoads,
             },
-            organizations: orgsRes.rows.map((row: any) => ({
-              id: row.id,
-              companyName: row.company_name,
-              hubCity: row.hub_city,
-              panOrGst: row.pan_or_gst,
-              gstin: row.gstin,
-              kycStatus: row.kyc_status,
-              signupDate: row.signup_date,
-              ownerName: row.owner_name || 'N/A',
-              ownerEmail: row.owner_email || 'N/A',
-              ownerPhone: row.owner_phone || 'N/A',
-              ownerRole: row.owner_role || 'OWNER',
-              vehicleCount: Number(row.vehicle_count || 0),
-              tripCount: Number(row.trip_count || 0)
-            }))
+            organizations: orgList
           }
         });
         return;
