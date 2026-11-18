@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Truck, ShieldCheck, ArrowRight, Sparkles, Building, User, Phone, Mail, Lock, MapPin, FileText } from 'lucide-react';
 
@@ -227,7 +227,17 @@ export const Auth: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-bold text-slate-300 uppercase">Password</label>
+              {!isRegister && (
+                <Link
+                  to="/forgot-password"
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+                >
+                  Forgot Password?
+                </Link>
+              )}
+            </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input

@@ -19,6 +19,7 @@ import { BalanceSentinel } from './pages/BalanceSentinel';
 import { CallLogs } from './pages/CallLogs';
 import { VisitingCard } from './pages/VisitingCard';
 import { Auth } from './pages/Auth';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { DriverTracking } from './pages/DriverTracking';
 import { CreatorAdmin } from './pages/CreatorAdmin';
 
@@ -32,6 +33,7 @@ export function App() {
               {/* Public Auth & Driver Mobile Tracking Routes */}
               <Route path="/login" element={<Auth />} />
               <Route path="/register" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/driver-track/:tripToken" element={<DriverTracking />} />
               <Route path="/driver-track" element={<DriverTracking />} />
 

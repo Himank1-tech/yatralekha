@@ -37,6 +37,8 @@ export interface UserRecord {
   passwordHash: string;
   role: 'OWNER' | 'MUNIM' | 'DRIVER';
   organizationId: string;
+  resetOtp?: string;
+  resetOtpExpires?: Date;
   createdAt: Date;
   updatedAt?: Date;
 }

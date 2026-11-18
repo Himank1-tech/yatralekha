@@ -3,6 +3,7 @@ import { OrganizationRepository, UserRepository, MemoryStore } from '../reposito
 import { AuthService } from '../services/AuthService';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
 import { Database } from '../database';
+import { EmailService } from '../services/EmailService';
 
 export class AuthController {
   /**
@@ -339,5 +340,182 @@ export class AuthController {
       },
       organization: org
     });
+  }
+
+  /**
+   * POST /api/v1/auth/forgot-password
+   * Sends a 6-digit verification OTP to the user's email for password recovery.
+   */
+  public static async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        res.status(400).json({ success: false, error: 'Valid email address is required.' });
+        return;
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      let user = UserRepository.findByEmail(normalizedEmail);
+      let userName = user?.fullName;
+
+      // Check PostgreSQL if not found in memory
+      if (!user && process.env.DATABASE_URL) {
+        const pool = Database.getPool();
+        const uRes = await pool.query(`SELECT id, full_name, email FROM users WHERE email = $1`, [normalizedEmail]);
+        if (uRes.rows.length > 0) {
+          userName = uRes.rows[0].full_name;
+        } else {
+          res.status(404).json({ success: false, error: 'No account registered with this email address.' });
+          return;
+        }
+      } else if (!user) {
+        res.status(404).json({ success: false, error: 'No account registered with this email address.' });
+        return;
+      }
+
+      // Generate 6-digit OTP & 15-minute expiry
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+      // Persist OTP in PostgreSQL
+      if (process.env.DATABASE_URL) {
+        try {
+          const pool = Database.getPool();
+          await pool.query(
+            `UPDATE users SET reset_otp = $1, reset_otp_expires = $2, updated_at = NOW() WHERE email = $3`,
+            [otp, expires, normalizedEmail]
+          );
+        } catch (dbErr: any) {
+          console.warn('[AuthController.forgotPassword] DB update notice:', dbErr.message);
+        }
+      }
+
+      // Update in memory if user exists in MemoryStore
+      if (user) {
+        user.resetOtp = otp;
+        user.resetOtpExpires = expires;
+      }
+
+      // Dispatch Email via Nodemailer
+      await EmailService.sendPasswordResetOtp(normalizedEmail, otp, userName);
+
+      res.json({
+        success: true,
+        message: 'A 6-digit verification code has been dispatched to your email address.'
+      });
+    } catch (err: any) {
+      console.error('[AuthController.forgotPassword] Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Internal server error processing password reset.' });
+    }
+  }
+
+  /**
+   * POST /api/v1/auth/reset-password
+   * Verifies the 6-digit OTP and updates user's password.
+   */
+  public static async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, otp, newPassword } = req.body;
+
+      if (!email || !otp || !newPassword) {
+        res.status(400).json({
+          success: false,
+          error: 'Email, verification code (OTP), and new password are required.'
+        });
+        return;
+      }
+
+      if (typeof newPassword !== 'string' || newPassword.length < 6) {
+        res.status(400).json({
+          success: false,
+          error: 'New password must be at least 6 characters long.'
+        });
+        return;
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      const cleanOtp = String(otp).trim();
+
+      let storedOtp: string | undefined;
+      let storedExpires: Date | undefined;
+
+      // 1. Check PostgreSQL
+      if (process.env.DATABASE_URL) {
+        const pool = Database.getPool();
+        const uRes = await pool.query(
+          `SELECT id, reset_otp, reset_otp_expires FROM users WHERE email = $1`,
+          [normalizedEmail]
+        );
+
+        if (uRes.rows.length === 0) {
+          res.status(404).json({ success: false, error: 'No account registered with this email address.' });
+          return;
+        }
+
+        storedOtp = uRes.rows[0].reset_otp;
+        storedExpires = uRes.rows[0].reset_otp_expires ? new Date(uRes.rows[0].reset_otp_expires) : undefined;
+      } else {
+        const user = UserRepository.findByEmail(normalizedEmail);
+        if (!user) {
+          res.status(404).json({ success: false, error: 'No account registered with this email address.' });
+          return;
+        }
+        storedOtp = user.resetOtp;
+        storedExpires = user.resetOtpExpires;
+      }
+
+      // 2. Validate OTP existence and match
+      if (!storedOtp || storedOtp !== cleanOtp) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid verification code (OTP). Please check your email and try again.'
+        });
+        return;
+      }
+
+      // 3. Validate OTP expiration
+      if (!storedExpires || storedExpires.getTime() < Date.now()) {
+        res.status(400).json({
+          success: false,
+          error: 'Verification code has expired. Please request a new OTP.'
+        });
+        return;
+      }
+
+      // 4. Hash new password
+      const passwordHash = await AuthService.hashPassword(newPassword);
+
+      // 5. Update password in PostgreSQL
+      if (process.env.DATABASE_URL) {
+        try {
+          const pool = Database.getPool();
+          await pool.query(
+            `UPDATE users 
+             SET password_hash = $1, reset_otp = NULL, reset_otp_expires = NULL, updated_at = NOW() 
+             WHERE email = $2`,
+            [passwordHash, normalizedEmail]
+          );
+        } catch (dbErr: any) {
+          console.warn('[AuthController.resetPassword] DB update notice:', dbErr.message);
+        }
+      }
+
+      // 6. Update in memory store if present
+      const memUser = UserRepository.findByEmail(normalizedEmail);
+      if (memUser) {
+        memUser.passwordHash = passwordHash;
+        memUser.resetOtp = undefined;
+        memUser.resetOtpExpires = undefined;
+      }
+
+      res.json({
+        success: true,
+        message: 'Password reset successfully. You can now sign in with your new password.'
+      });
+    } catch (err: any) {
+      console.error('[AuthController.resetPassword] Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Internal server error resetting password.' });
+    }
   }
 }
