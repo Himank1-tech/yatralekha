@@ -26,7 +26,8 @@ import {
   Siren,
   LogOut,
   WifiOff,
-  User as UserIcon
+  User as UserIcon,
+  Crown
 } from 'lucide-react';
 import { YatraMitraModal } from './YatraMitraModal';
 import { EmergencyModal } from './EmergencyModal';
@@ -212,6 +213,31 @@ export const Layout: React.FC = () => {
             })}
           </div>
         </div>
+
+        {/* Creator Control Room (Private Space) */}
+        {user?.email?.trim().toLowerCase() === 'himankbatra2005@gmail.com' && (
+          <div>
+            <div className="px-3 mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center justify-between">
+              <span>Creator Space</span>
+              <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-black">ROOT</span>
+            </div>
+            <div className="space-y-1">
+              <NavLink
+                to="/creator-admin"
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2 rounded-xl font-bold transition-all ${
+                    isActive
+                      ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
+                      : 'text-amber-400 hover:text-amber-200 hover:bg-slate-800/80 border border-amber-500/20'
+                  }`
+                }
+              >
+                <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="truncate">👑 Creator Admin</span>
+              </NavLink>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* AIS-140 Telematics Status Footer */}
@@ -359,6 +385,19 @@ export const Layout: React.FC = () => {
                   {user?.fullName || 'Transporter'} {organization?.gstin ? `· GST: ${organization.gstin}` : '· Owner'}
                 </div>
               </div>
+
+              {/* Private Creator Admin Link - strictly visible ONLY to platform creator */}
+              {user?.email?.trim().toLowerCase() === 'himankbatra2005@gmail.com' && (
+                <NavLink
+                  to="/creator-admin"
+                  title="Private Creator Control Room"
+                  className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-black text-xs flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="hidden sm:inline">👑 Creator Admin</span>
+                </NavLink>
+              )}
+
               <button
                 onClick={() => {
                   logout();

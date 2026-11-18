@@ -50,3 +50,25 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
 
   next();
 }
+
+/**
+ * Strict Creator Admin authentication middleware.
+ * Verifies JWT and asserts req.user.email strictly matches process.env.CREATOR_EMAIL (default: 'himankbatra2005@gmail.com').
+ * Returns 403 Forbidden for any other user.
+ */
+export function requireCreatorAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    const creatorEmail = (process.env.CREATOR_EMAIL || 'himankbatra2005@gmail.com').trim().toLowerCase();
+    const userEmail = req.user?.email?.trim().toLowerCase();
+
+    if (!userEmail || userEmail !== creatorEmail) {
+      res.status(403).json({
+        success: false,
+        error: 'Forbidden: Access denied. Only the platform creator can view the Creator Control Room.'
+      });
+      return;
+    }
+
+    next();
+  });
+}

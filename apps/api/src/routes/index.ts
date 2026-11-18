@@ -16,7 +16,8 @@ import { PodBalanceController } from '../controllers/PodBalanceController';
 import { AuthController } from '../controllers/AuthController';
 import { VaultController } from '../controllers/VaultController';
 import { AiController } from '../controllers/AiController';
-import { requireAuth, optionalAuth } from '../middleware/authMiddleware';
+import { AdminController } from '../controllers/AdminController';
+import { requireAuth, optionalAuth, requireCreatorAdmin } from '../middleware/authMiddleware';
 import { documentUpload } from '../services/storage';
 
 const router: Router = Router();
@@ -116,5 +117,8 @@ router.post('/pod-claims/:id/settle', requireAuth, PodBalanceController.settle);
 
 // 14. Yatra-Mitra Multimodal AI Voice Copilot
 router.post('/ai/chat', requireAuth, AiController.chat);
+
+// 15. Private Creator Control Room (Platform Analytics)
+router.get('/admin/overview', requireCreatorAdmin, AdminController.getOverview);
 
 export default router;

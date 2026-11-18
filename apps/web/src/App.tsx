@@ -20,6 +20,7 @@ import { CallLogs } from './pages/CallLogs';
 import { VisitingCard } from './pages/VisitingCard';
 import { Auth } from './pages/Auth';
 import { DriverTracking } from './pages/DriverTracking';
+import { CreatorAdmin } from './pages/CreatorAdmin';
 
 export function App() {
   return (
@@ -56,6 +57,7 @@ export function App() {
                 <Route path="ledger" element={<Ledger />} />
                 <Route path="ocr" element={<DocumentOcr />} />
                 <Route path="corridors" element={<Corridors />} />
+                <Route path="creator-admin" element={<CreatorAdmin />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>
