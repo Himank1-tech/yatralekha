@@ -491,9 +491,12 @@ export class PodBalanceRepository {
     const claim = MemoryStore.podClaims.get(id);
     if (!claim) return null;
 
+    const org = (claim as any).organizationId ? OrganizationRepository.findById((claim as any).organizationId) : undefined;
+    const orgName = org?.companyName || org?.name || 'Fleet Operator Accounts & Recovery Sentinel';
+
     const noticeText = `*FORMAL PAYMENT DEMAND NOTICE - YATRA LEKHA FREIGHT ESCROW*\n\n` +
       `To: *${claim.brokerName}* (${claim.brokerPhone})\n` +
-      `From: *Vidarbha Heavy Haulers Pvt Ltd / Patil Transport*\n\n` +
+      `From: *${orgName}*\n\n` +
       `*Subject:* Immediate Payment of Overdue POD Balance (Bilty #${claim.biltyNumber})\n\n` +
       `Dear Sir/Madam,\n` +
       `Vehicle *${claim.vehicleNumber}* completed freight consignment delivery for route *${claim.origin} ➔ ${claim.destination}* on *${new Date(claim.unloadingDate).toLocaleDateString('en-IN')}*.\n\n` +
@@ -503,10 +506,7 @@ export class PodBalanceRepository {
       `• Agreed Payment Grace Period Due Date: *${new Date(claim.dueDate).toLocaleDateString('en-IN')}*\n` +
       `• Current Overdue Delay: *${claim.daysOverdue} Days*\n\n` +
       `Acknowledged Proof of Delivery (POD) with consignee stamp has already been handed over. Failure to clear balance within 48 hours will trigger statutory reporting under Indian Commercial Transport Recovery Guidelines and broker blacklisting on the YatraLekha Freight Exchange.\n\n` +
-      `Bank IMPS / UPI for Immediate Credit:\n` +
-      `Account: 92102004811982 | IFSC: UTIB0000123\n` +
-      `UPI ID: vidarbhahaulers@axl\n\n` +
-      `Regards,\nAccounts & Recovery Sentinel\nVidarbha Heavy Haulers Pvt Ltd`;
+      `Regards,\nAccounts & Recovery Sentinel\n${orgName}`;
 
     const cleanPhone = claim.brokerPhone.replace(/[^0-9]/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;

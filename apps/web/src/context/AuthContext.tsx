@@ -65,12 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         setUser(JSON.parse(savedUser));
         if (savedOrg) setOrganization(JSON.parse(savedOrg));
+        setToken(savedToken);
       } catch {
-        // Fallback
+        logout();
       }
     } else {
-      // Default initial session: Demo Sandbox for instant live exploration
-      loginDemoSandbox();
+      // Strict production mode: No auto demo login; user must sign in or register
+      setUser(null);
+      setOrganization(null);
+      setToken(null);
     }
     setIsLoading(false);
   }, []);
@@ -84,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (!res.ok) {
-        return { success: false, error: data.error || 'Login failed' };
+        return { success: false, error: data.error || 'Invalid email or password' };
       }
 
       setToken(data.token);
@@ -97,28 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { success: true };
     } catch {
-      // Standalone mode fallback
-      const demoUser: User = {
-        id: 'user-demo-1',
-        fullName: 'Rajeshwar Patil',
-        email,
-        phone: '+91 98220 01122',
-        role: 'OWNER',
-        organizationId: 'org-demo-1'
-      };
-      const demoOrg: Organization = {
-        id: 'org-demo-1',
-        name: 'Vidarbha Heavy Haulers Pvt Ltd',
-        companyName: 'Vidarbha Heavy Haulers Pvt Ltd',
-        hubCity: 'Nagpur (Hingna MIDC)'
-      };
-      setToken('demo-jwt-token');
-      setUser(demoUser);
-      setOrganization(demoOrg);
-      localStorage.setItem('yatralekha_token', 'demo-jwt-token');
-      localStorage.setItem('yatralekha_user', JSON.stringify(demoUser));
-      localStorage.setItem('yatralekha_org', JSON.stringify(demoOrg));
-      return { success: true };
+      return { success: false, error: 'Could not connect to authentication server' };
     }
   };
 

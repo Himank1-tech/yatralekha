@@ -7,7 +7,7 @@ export const Auth: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const { login, register, loginDemoSandbox } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
 
   // Form State
@@ -60,13 +60,6 @@ export const Auth: React.FC = () => {
     }
   };
 
-  const handleDemoAccess = async () => {
-    setLoading(true);
-    await loginDemoSandbox();
-    setLoading(false);
-    navigate('/');
-  };
-
   return (
     <div className="min-h-screen bg-[#070A10] text-slate-100 flex flex-col justify-center items-center px-4 py-8">
       {/* Background Glow */}
@@ -83,7 +76,7 @@ export const Auth: React.FC = () => {
               YatraLekha <span className="text-amber-400 text-xs font-bold">v2.0</span>
             </h1>
             <p className="text-[11px] text-indigo-400 font-bold uppercase tracking-wider mt-0.5">
-              Autonomous Heavy-Haul Fleet OS & Marketplace
+              Commercial Heavy-Haul Fleet OS & Marketplace
             </p>
           </div>
         </div>
@@ -94,29 +87,6 @@ export const Auth: React.FC = () => {
 
       {/* Main Card */}
       <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur-xl relative z-10">
-        {/* Instant 1-Click Demo Sandbox Pill */}
-        <div className="mb-5 p-3.5 rounded-xl bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/40">
-          <div className="flex items-center justify-between mb-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400">
-              <Sparkles className="w-3.5 h-3.5" /> 1-Click Instant Demo
-            </span>
-            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              Zero Setup
-            </span>
-          </div>
-          <p className="text-xs text-slate-300 mb-3">
-            Test the live app immediately with preloaded 12W trucks, live GPS tracking, fuel audit, and POD ledger:
-          </p>
-          <button
-            type="button"
-            onClick={handleDemoAccess}
-            disabled={loading}
-            className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
-          >
-            Launch Vidarbha Heavy Haulers Sandbox <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
         {/* Auth Toggle */}
         <div className="flex border-b border-slate-800 mb-5">
           <button

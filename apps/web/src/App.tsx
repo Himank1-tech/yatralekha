@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { LiveTracking } from './pages/LiveTracking';
@@ -23,33 +25,42 @@ export function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public Auth & Driver Mobile Tracking Routes */}
-            <Route path="/login" element={<Auth />} />
-            <Route path="/register" element={<Auth />} />
-            <Route path="/driver-track/:tripToken" element={<DriverTracking />} />
-            <Route path="/driver-track" element={<DriverTracking />} />
+        <LanguageProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Auth & Driver Mobile Tracking Routes */}
+              <Route path="/login" element={<Auth />} />
+              <Route path="/register" element={<Auth />} />
+              <Route path="/driver-track/:tripToken" element={<DriverTracking />} />
+              <Route path="/driver-track" element={<DriverTracking />} />
 
-            {/* Main Super-App Dashboard Workspace */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="loads" element={<FreightBoard />} />
-              <Route path="balance-sentinel" element={<BalanceSentinel />} />
-              <Route path="call-logs" element={<CallLogs />} />
-              <Route path="visiting-card" element={<VisitingCard />} />
-              <Route path="tracking" element={<LiveTracking />} />
-              <Route path="trips" element={<Trips />} />
-              <Route path="fuel-audit" element={<FuelAudit />} />
-              <Route path="vehicles" element={<Vehicles />} />
-              <Route path="compliance" element={<Compliance />} />
-              <Route path="ledger" element={<Ledger />} />
-              <Route path="ocr" element={<DocumentOcr />} />
-              <Route path="corridors" element={<Corridors />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              {/* Main Super-App Dashboard Workspace Protected by Strict JWT Guard */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="loads" element={<FreightBoard />} />
+                <Route path="balance-sentinel" element={<BalanceSentinel />} />
+                <Route path="call-logs" element={<CallLogs />} />
+                <Route path="visiting-card" element={<VisitingCard />} />
+                <Route path="tracking" element={<LiveTracking />} />
+                <Route path="trips" element={<Trips />} />
+                <Route path="fuel-audit" element={<FuelAudit />} />
+                <Route path="vehicles" element={<Vehicles />} />
+                <Route path="compliance" element={<Compliance />} />
+                <Route path="ledger" element={<Ledger />} />
+                <Route path="ocr" element={<DocumentOcr />} />
+                <Route path="corridors" element={<Corridors />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </LanguageProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

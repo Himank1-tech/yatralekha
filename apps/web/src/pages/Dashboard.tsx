@@ -18,17 +18,22 @@ import {
   PhoneCall,
   CreditCard,
   Sparkles,
-  Zap
+  Zap,
+  Plus
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
+import { OnboardingCard } from '../components/OnboardingCard';
 import { formatINR, formatTonnes, formatDate } from '../utils/formatters';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import { Trip, CorridorDetails, AxleConfiguration } from '../types';
 
 export const Dashboard: React.FC = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [corridors, setCorridors] = useState<CorridorDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [telematicsLog, setTelematicsLog] = useState<string | null>(null);
@@ -46,34 +51,16 @@ export const Dashboard: React.FC = () => {
         const corRes = await api.get<{ success: boolean; data: CorridorDetails[] }>('/corridors');
         if (corRes.data) setCorridors(corRes.data);
 
-        // Fetch live trips from backend
+        // Fetch vehicles
+        const vehRes = await api.get<{ success: boolean; data: any[] }>('/vehicles').catch(() => null);
+        if (vehRes?.data) setVehicles(vehRes.data);
+
+        // Fetch live trips from backend (clean empty array if no trips)
         const tripsRes = await api.get<{ success: boolean; data: Trip[] }>('/trips').catch(() => null);
-        if (tripsRes?.data && tripsRes.data.length > 0) {
+        if (tripsRes?.data) {
           setTrips(tripsRes.data);
         } else {
-          // Fallback initial view
-          setTrips([
-            {
-              id: 'trip-1',
-              organizationId: 'org-1',
-              vehicleId: 'veh-1',
-              tripSerialNumber: 'TRIP-2026-NGP-PUN-001',
-              origin: 'Nagpur (Hingna MIDC)',
-              destination: 'Pune (Chakan Auto Hub)',
-              corridorDistanceKm: 720,
-              billedWeightTonnes: 24.5,
-              rateType: 'PER_TONNE',
-              freightRate: 1150,
-              grossFreightAmount: 28175,
-              advanceAmount: 21131.25,
-              balancePodDue: 7043.75,
-              podClearanceStatus: 'PENDING',
-              overloadRiskFlag: false,
-              overloadExcessKg: 0,
-              expenses: [],
-              startedAt: new Date(Date.now() - 86400000).toISOString()
-            }
-          ]);
+          setTrips([]);
         }
       } catch (err) {
         console.warn('Dashboard load error:', err);
@@ -84,9 +71,9 @@ export const Dashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const totalGrossFreight = trips.reduce((sum, t) => sum + t.grossFreightAmount, 0);
-  const totalAdvance = trips.reduce((sum, t) => sum + t.advanceAmount, 0);
-  const totalPodBalance = trips.reduce((sum, t) => sum + t.balancePodDue, 0);
+  const totalGrossFreight = trips.reduce((sum, t) => sum + (t.grossFreightAmount || 0), 0);
+  const totalAdvance = trips.reduce((sum, t) => sum + (t.advanceAmount || 0), 0);
+  const totalPodBalance = trips.reduce((sum, t) => sum + (t.balancePodDue || 0), 0);
 
   const simulatePing = async () => {
     try {
@@ -106,11 +93,18 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {/* 3-Step Guided Onboarding Card for New Transporters */}
+      <OnboardingCard
+        vehicleCount={vehicles.length}
+        tripCount={trips.length}
+        onVehicleAdded={(newV) => setVehicles((prev) => [...prev, newV])}
+      />
+
       {/* Top Banner / Welcome */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Fleet Operations & Khata Cockpit
+            {t('cockpit')}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Real-time multi-axle freight economics, weighbridge overload guard, and RTO watchdogs.
@@ -120,7 +114,7 @@ export const Dashboard: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={simulatePing}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition cursor-pointer"
           >
             <Radio className="w-3.5 h-3.5 text-emerald-400" />
             Simulate AIS-140 Ping
@@ -133,7 +127,7 @@ export const Dashboard: React.FC = () => {
           <span>{telematicsLog}</span>
           <button
             onClick={() => setTelematicsLog(null)}
-            className="text-emerald-700 hover:text-emerald-950 font-bold ml-4"
+            className="text-emerald-700 hover:text-emerald-950 font-bold ml-4 cursor-pointer"
           >
             ✕
           </button>
@@ -143,31 +137,31 @@ export const Dashboard: React.FC = () => {
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          title="Gross Billed Freight"
-          value={formatINR(totalGrossFreight || 33675)}
+          title={t('grossFreight')}
+          value={formatINR(totalGrossFreight)}
           subtitle="Across active & cleared trips"
           icon={IndianRupee}
           variant="indigo"
-          trend={{ value: '+12.4% vs last week', isPositive: true }}
+          trend={totalGrossFreight > 0 ? { value: '+12.4% vs last week', isPositive: true } : undefined}
         />
         <StatCard
-          title="Disbursed Advance (75%)"
-          value={formatINR(totalAdvance || 25531)}
+          title={t('advanceCollected')}
+          value={formatINR(totalAdvance)}
           subtitle="Cash + Fuel Parchi slips at loading"
           icon={TrendingUp}
           variant="default"
         />
         <StatCard
-          title="Retained POD Balance (25%)"
-          value={formatINR(totalPodBalance || 8143)}
+          title={t('podBalanceDue')}
+          value={formatINR(totalPodBalance)}
           subtitle="Pending delivery receipt clearance"
           icon={FileCheck2}
           variant="amber"
         />
         <StatCard
-          title="Fleet Fuel Benchmark"
-          value="3.0 km/L"
-          subtitle="Alert threshold: < 2.6 km/L"
+          title={t('liveFleet')}
+          value={`${vehicles.length} Trucks`}
+          subtitle="Benchmark: 3.0 km/L threshold"
           icon={Fuel}
           variant="emerald"
         />
@@ -448,40 +442,58 @@ export const Dashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {trips.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">
-                    {t.tripSerialNumber || (t as any).lrNumber || 'TRIP-2026-001'}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-medium text-slate-900">{t.origin}</div>
-                    <div className="text-[11px] text-slate-400">→ {t.destination}</div>
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-900">
-                    {formatTonnes(t.billedWeightTonnes)}
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">
-                    {formatINR(t.grossFreightAmount)}
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">
-                    {formatINR(t.advanceAmount)}
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-amber-700">
-                    {formatINR(t.balancePodDue)}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    {t.podClearanceStatus === 'VERIFIED' ? (
-                      <Badge variant="emerald" size="sm">
-                        POD Verified
-                      </Badge>
-                    ) : (
-                      <Badge variant="amber" size="sm">
-                        POD Pending (Khata)
-                      </Badge>
-                    )}
+              {trips.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-slate-400">
+                    <Truck className="w-8 h-8 mx-auto mb-2 text-slate-300 opacity-60" />
+                    <p className="text-xs font-bold text-slate-700">Zero Active Trips in Workspace</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Ready to start? Use the quick fleet setup guide above or click Log Trip to record your first freight assignment.
+                    </p>
+                    <button
+                      onClick={() => navigate('/trips')}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-sm cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Log First Trip
+                    </button>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                trips.map((t) => (
+                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-900">
+                      {t.tripSerialNumber || (t as any).lrNumber || 'TRIP-2026-001'}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-medium text-slate-900">{t.origin}</div>
+                      <div className="text-[11px] text-slate-400">→ {t.destination}</div>
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-900">
+                      {formatTonnes(t.billedWeightTonnes)}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      {formatINR(t.grossFreightAmount)}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">
+                      {formatINR(t.advanceAmount)}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-amber-700">
+                      {formatINR(t.balancePodDue)}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {t.podClearanceStatus === 'VERIFIED' ? (
+                        <Badge variant="emerald" size="sm">
+                          POD Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="amber" size="sm">
+                          POD Pending (Khata)
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

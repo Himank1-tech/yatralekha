@@ -1,6 +1,7 @@
-// API Client with resilient standalone fallback engine for Netlify and remote mobile devices
+// API Client with resilient standalone fallback engine and offline highway sync
+import { OfflineSync } from '../utils/offlineSync';
 
-const API_BASE = '/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1';
 
 const initialCorridors = [
   {
@@ -1283,22 +1284,54 @@ function handleStandaloneFallback<T>(method: string, path: string, body?: any): 
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const token = localStorage.getItem('yatralekha_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const options: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
   };
   if (body) options.body = JSON.stringify(body);
 
   try {
     const res = await fetch(url, options);
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      // Cache successful workspace GET responses for offline highway resilience
+      if (method === 'GET') {
+        OfflineSync.saveCache(path, data);
+      }
+      return data;
     }
   } catch {
-    // Backend offline / remote static deploy
+    // Backend offline / remote highway coverage loss
   }
 
-  // Seamless standalone engine
+  // 1. Check local cache for offline GET requests
+  if (method === 'GET') {
+    const cached = OfflineSync.getCache<T>(path);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  // 2. Queue offline mutations for POST / DELETE
+  if (method === 'POST' || method === 'DELETE') {
+    OfflineSync.enqueueMutation(path, method, body);
+    return {
+      success: true,
+      data: body || {},
+      _offlineQueued: true,
+      message: 'Saved to local offline queue. Will sync automatically when signal returns.'
+    } as unknown as T;
+  }
+
+  // 3. Fallback engine (for unauthenticated or initial loads)
   return handleStandaloneFallback<T>(method, path, body);
 }
 

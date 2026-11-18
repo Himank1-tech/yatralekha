@@ -4,8 +4,13 @@ import { seedDatabase } from '../database/seed';
 import { Database } from '@fleetpilot/db';
 
 async function bootstrap() {
-  // 1. Seed in-memory baseline
-  seedDatabase();
+  // 1. Seed in-memory baseline only in local development when explicitly requested
+  if (process.env.NODE_ENV !== 'production' && process.env.SEED_DEMO === 'true') {
+    console.log('[YatraLekha Database] Seeding local development demo data...');
+    seedDatabase();
+  } else {
+    console.log('[YatraLekha Database] Production mode: Clean database (zero demo seeding).');
+  }
 
   // 2. Test PostgreSQL Database connection & run cloud migrations if DATABASE_URL is set
   if (process.env.DATABASE_URL) {
