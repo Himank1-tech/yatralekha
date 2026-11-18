@@ -18,6 +18,9 @@ export class EmailService {
         user,
         pass,
       },
+      connectionTimeout: 4000,
+      greetingTimeout: 4000,
+      socketTimeout: 5000,
     });
   }
 
@@ -29,8 +32,6 @@ export class EmailService {
     otp: string,
     recipientName?: string
   ): Promise<{ success: boolean; sent: boolean }> {
-    const transporter = this.getTransporter();
-
     const subject = `🔐 YatraLekha Password Reset OTP: ${otp}`;
     const text = `Namaste ${recipientName || 'Transporter'},\n\nYour 6-digit verification OTP to reset your YatraLekha password is:\n\n${otp}\n\nThis OTP is valid for 15 minutes. If you did not request this password reset, please ignore this email.\n\nRegards,\nYatraLekha Security Team`;
     
@@ -53,6 +54,39 @@ export class EmailService {
       </div>
     `;
 
+    // 1. If RESEND_API_KEY is available, use HTTPS REST API (Port 443, never blocked by cloud firewalls)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const fromAddr = process.env.SMTP_FROM || 'YatraLekha Security <onboarding@resend.dev>';
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: fromAddr,
+            to: [toEmail],
+            subject,
+            html,
+            text
+          })
+        });
+
+        if (res.ok) {
+          console.log(`[EmailService] ✓ Successfully dispatched OTP via Resend API to ${toEmail}`);
+          return { success: true, sent: true };
+        } else {
+          const errData = await res.text();
+          console.warn(`[EmailService] Resend API responded with error:`, errData);
+        }
+      } catch (resendErr: any) {
+        console.warn(`[EmailService] Resend API dispatch error:`, resendErr.message);
+      }
+    }
+
+    // 2. Nodemailer SMTP (Gmail or custom SMTP)
+    const transporter = this.getTransporter();
     if (transporter) {
       try {
         await transporter.sendMail({
@@ -66,10 +100,11 @@ export class EmailService {
         return { success: true, sent: true };
       } catch (err: any) {
         console.error(`[EmailService] ✕ SMTP Dispatch error for ${toEmail}:`, err.message);
+        console.log(`[EmailService] Security OTP for ${toEmail} is: ${otp}`);
         return { success: false, sent: false };
       }
     } else {
-      console.log(`[EmailService] SMTP credentials not yet injected. OTP for ${toEmail} is: ${otp}`);
+      console.log(`[EmailService] Security OTP for ${toEmail} is: ${otp}`);
       return { success: true, sent: false };
     }
   }
